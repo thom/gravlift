@@ -24,9 +24,32 @@ TESTS_FAILED=0
 
 # Create a master sandbox directory for the test execution
 SANDBOX_DIR=$(mktemp -d)
+
+# Hard guard to prevent deleting anything outside SANDBOX_DIR
+safe_rm_rf() {
+    local target="$1"
+    if [ -z "$target" ]; then
+        echo "CRITICAL SAFETY: Refusing to delete empty path." >&2
+        exit 1
+    fi
+    # Block root, user homes, system dirs
+    if [[ "$target" == "/" || "$target" == "/home" || "$target" == "/home/"* || "$target" == "/etc"* || "$target" == "/usr"* ]]; then
+        echo "CRITICAL SAFETY: Refusing to delete system or home path '$target'." >&2
+        exit 1
+    fi
+    # STRICT ENFORCEMENT: Target MUST be inside $SANDBOX_DIR
+    if [[ "$target" != "$SANDBOX_DIR"* ]]; then
+        echo "CRITICAL SAFETY: Refusing to delete path outside sandbox '$SANDBOX_DIR': '$target'." >&2
+        exit 1
+    fi
+    rm -rf "$target"
+}
+
 # Register cleanup trap for the master sandbox
 cleanup_master_sandbox() {
-    rm -rf "$SANDBOX_DIR"
+    if [[ -n "$SANDBOX_DIR" && "$SANDBOX_DIR" == "/tmp/"* && -d "$SANDBOX_DIR" ]]; then
+        rm -rf "$SANDBOX_DIR"
+    fi
 }
 trap cleanup_master_sandbox EXIT
 
@@ -41,6 +64,16 @@ mkdir -p "$TEST_HOME" "$MOCK_BIN" "$MOCK_ARCHIVES" "$MOCK_TMP"
 # Export environments to sandbox the execution
 export HOME="$TEST_HOME"
 export TMPDIR="$MOCK_TMP"
+
+# Verify sandbox invariants immediately before executing any tests
+if [[ -z "$SANDBOX_DIR" || "$SANDBOX_DIR" != "/tmp/"* || ! -d "$SANDBOX_DIR" ]]; then
+    echo "CRITICAL SAFETY: Invalid sandbox directory '$SANDBOX_DIR'. Aborting immediately." >&2
+    exit 1
+fi
+if [[ "$HOME" != "$SANDBOX_DIR/home" ]]; then
+    echo "CRITICAL SAFETY: HOME does not point to sandbox directory: '$HOME'. Aborting immediately." >&2
+    exit 1
+fi
 
 # Variables for the last executed command state
 LAST_EXIT_CODE=0
@@ -109,7 +142,8 @@ EOF
 
 # Restore default mocks
 reset_mocks() {
-    rm -f "$MOCK_BIN"/*
+    safe_rm_rf "$MOCK_BIN"
+    mkdir -p "$MOCK_BIN"
     # 2GB available (plenty of space)
     set_mock_df 2097152
     # Glibc 2.35 (compatible)
@@ -177,9 +211,11 @@ if [ "\${1:-}" = "-e" ]; then
         echo "$version"
     fi
 fi
+echo "Mock Antigravity App executed"
 EOF
     chmod +x "$run_dir/$exe_name"
 
+    # Write package.json if not "no-json"
     if [ "$layout" != "no-json" ]; then
         # Create package.json or app.asar to simulate version information
         mkdir -p "$app_dir/resources/app"
@@ -201,7 +237,7 @@ EOF
 
     # Pack the archive
     tar -czf "$dest_path" -C "$temp_build_dir" extracted
-    rm -rf "$temp_build_dir"
+    safe_rm_rf "$temp_build_dir"
 }
 
 # --- Assertion Helpers ---
@@ -282,7 +318,7 @@ run_gravlift() {
     set +e
     (
         cd "$TEST_HOME"
-        PATH="$MOCK_BIN:$PATH" bash "$GRAVLIFT_PATH" "$@"
+        PATH="$MOCK_BIN:$PATH" bash "$GRAVLIFT_PATH" "$@" < /dev/null
     ) > "$LAST_OUTPUT_FILE" 2>&1
     LAST_EXIT_CODE=$?
     set -e
@@ -291,14 +327,15 @@ run_gravlift() {
 
 setup() {
     # Clean and recreate home directory and mock files
-    rm -rf "$TEST_HOME"
+    safe_rm_rf "$TEST_HOME"
     mkdir -p "$TEST_HOME" "$TEST_HOME/Downloads"
     reset_mocks
 }
 
 teardown() {
     # Clean up files created during the test
-    rm -rf "$MOCK_TMP"/*
+    safe_rm_rf "$MOCK_TMP"
+    mkdir -p "$MOCK_TMP"
 }
 
 run_test() {
@@ -517,7 +554,7 @@ test_concurrency_lock() {
     assert_output_contains "Another instance of gravlift"
     
     # Clean lock
-    rm -rf "$lock_dir"
+    safe_rm_rf "$lock_dir"
 }
 
 # T13: Disk space pre-flight validation
@@ -686,6 +723,120 @@ EOF
     assert_output_contains "Skipping gravlift self-installation (opted out"
 }
 
+# T23: Uninstall Antigravity application, symlink, launcher, and icon
+test_uninstall_antigravity() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-uninstall.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+    
+    run_gravlift "$archive"
+    assert_success
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity"
+
+    run_gravlift --uninstall -y
+    assert_success
+    
+    assert_file_not_exists "$TEST_HOME/opt/antigravity/antigravity"
+    if [ -d "$TEST_HOME/opt/antigravity" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/opt/antigravity directory to be deleted"
+        return 1
+    fi
+    if [ -L "$TEST_HOME/.local/bin/antigravity" ] || [ -f "$TEST_HOME/.local/bin/antigravity" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/.local/bin/antigravity to be deleted"
+        return 1
+    fi
+    assert_file_not_exists "$TEST_HOME/.local/share/applications/antigravity.desktop"
+    assert_file_not_exists "$TEST_HOME/.local/share/icons/antigravity.png"
+    assert_output_contains "Antigravity 2.0 uninstallation completed successfully"
+}
+
+# T24: Uninstall Antigravity dry run displays actions without deleting files
+test_uninstall_antigravity_dry_run() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-uninstall-dry.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+    
+    run_gravlift "$archive"
+    assert_success
+    
+    run_gravlift --uninstall --dry-run
+    assert_success
+    
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity"
+    assert_output_contains "[DRY-RUN] The following Antigravity items would be removed:"
+}
+
+# T25: Uninstall gravlift tool removes executable and symlink
+test_uninstall_self() {
+    run_gravlift --self-install
+    assert_success
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+    assert_link_exists "$TEST_HOME/.local/bin/gravlift"
+
+    run_gravlift --uninstall-self -y
+    assert_success
+    
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ -L "$TEST_HOME/.local/bin/gravlift" ] || [ -f "$TEST_HOME/.local/bin/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/.local/bin/gravlift to be deleted"
+        return 1
+    fi
+    assert_output_contains "gravlift tool uninstallation completed successfully"
+}
+
+# T26: Uninstall all with --purge removes app, tool, backups, and config
+test_uninstall_all_with_purge() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-uninstall-all.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+    
+    run_gravlift "$archive"
+    assert_success
+
+    # Setup mock backups and config
+    mkdir -p "$TEST_HOME/.cache/gravlift/backups"
+    touch "$TEST_HOME/.cache/gravlift/backups/test.tar.gz"
+    mkdir -p "$TEST_HOME/.config/gravlift"
+    touch "$TEST_HOME/.config/gravlift/config"
+
+    run_gravlift --uninstall-all --purge -y
+    assert_success
+
+    assert_file_not_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ -L "$TEST_HOME/.local/bin/antigravity" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected antigravity bin link to be deleted"
+        return 1
+    fi
+    if [ -L "$TEST_HOME/.local/bin/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected gravlift bin link to be deleted"
+        return 1
+    fi
+    if [ -d "$TEST_HOME/.cache/gravlift/backups" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected backup directory to be purged"
+        return 1
+    fi
+    if [ -d "$TEST_HOME/.config/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected config directory to be purged"
+        return 1
+    fi
+    assert_output_contains "Antigravity 2.0 uninstallation completed successfully"
+    assert_output_contains "gravlift tool uninstallation completed successfully"
+}
+
+# T27: Non-interactive uninstallation requires -y/--yes
+test_uninstall_non_interactive_requires_yes() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-requires-yes.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+    
+    run_gravlift "$archive"
+    assert_success
+
+    # Running in non-interactive subshell without -y should fail safely
+    run_gravlift --uninstall
+    assert_failure 1
+    assert_output_contains "Non-interactive environment detected. Use '-y' or '--yes'"
+}
+
 # --- Main Test Execution ---
 
 echo -e "${BOLD}Starting gravlift test suite...${NC}"
@@ -714,6 +865,11 @@ run_test test_self_install_dynamic_systemd_path "Self-installation dynamically d
 run_test test_self_install_config_file "Self-installation respects ~/.config/gravlift/config"
 run_test test_self_install_opt_out_flag "Self-installation opt-out via --no-self-install flag"
 run_test test_self_install_opt_out_config "Self-installation opt-out via AUTO_SELF_INSTALL=false in config"
+run_test test_uninstall_antigravity "Uninstall Antigravity app, symlink, launcher, and icon"
+run_test test_uninstall_antigravity_dry_run "Uninstall dry run displays actions without deleting files"
+run_test test_uninstall_self "Uninstall gravlift tool removes executable and symlink"
+run_test test_uninstall_all_with_purge "Uninstall all with --purge removes app, tool, backups, and config"
+run_test test_uninstall_non_interactive_requires_yes "Non-interactive uninstallation requires -y/--yes"
 
 echo "================================================="
 echo -e "${BOLD}Test Suite Summary:${NC}"

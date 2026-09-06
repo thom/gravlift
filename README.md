@@ -77,6 +77,30 @@ When installing Antigravity, `gravlift` automatically self-installs to your path
 ```
 Or set `AUTO_SELF_INSTALL=false` in `~/.config/gravlift/config` (or environment variable `GRAVLIFT_AUTO_SELF_INSTALL=false`).
 
+### 6. Uninstallation
+`gravlift` provides clean removal options for Antigravity and/or the `gravlift` utility:
+
+#### Uninstall Antigravity 2.0
+Removes the Antigravity installation (`~/opt/antigravity`), binary symlink (`~/.local/bin/antigravity`), desktop launcher, and icon:
+```bash
+gravlift --uninstall
+```
+
+#### Uninstall gravlift
+Removes `gravlift` from `~/opt/gravlift` and its symlink from `~/.local/bin/gravlift`:
+```bash
+gravlift --uninstall-self
+```
+
+#### Uninstall Everything & Purge
+Removes Antigravity, `gravlift`, and cached backup archives:
+```bash
+gravlift --uninstall-all --purge -y
+```
+
+> [!NOTE]
+> User configuration files and editor workspaces (e.g. `~/.config/Antigravity`) are always preserved to prevent accidental loss of settings and project histories.
+
 ---
 
 ## CLI Options Reference
@@ -92,6 +116,11 @@ Or set `AUTO_SELF_INSTALL=false` in `~/.config/gravlift/config` (or environment 
 | | `--no-self-install` | Opt out of installing/updating `gravlift` itself during app installations |
 | | `--self-install-dir <dir>` | Override self-installation directory (default: `~/opt/gravlift`) |
 | | `--bin-dir <dir>` | Override user binary directory (default: `~/.local/bin`) |
+| | `--uninstall` | Uninstall Antigravity 2.0 application files, symlinks, and launcher |
+| | `--uninstall-self` | Uninstall the `gravlift` tool itself |
+| | `--uninstall-all` | Uninstall Antigravity 2.0, `gravlift`, and related files |
+| | `--purge` | Remove backups and configuration directories during uninstallation |
+| `-y` | `--yes` | Automatically confirm uninstallation prompts (for non-interactive use) |
 
 ---
 
@@ -130,7 +159,7 @@ fish_add_path ~/.local/bin
 ./tests/run_tests.sh
 ```
 
-The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 22 test cases covering CLI flags, self-installation, opt-out mechanisms, version checks, locks, traps, and fallback logic.
+The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 27 test cases covering CLI flags, self-installation, uninstallation, opt-out mechanisms, version checks, locks, traps, and fallback logic.
 
 ---
 
