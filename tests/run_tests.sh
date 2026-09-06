@@ -604,7 +604,7 @@ EOF
 test_version_flag() {
     run_gravlift --version
     assert_success
-    assert_output_contains "gravlift v1.0.0"
+    assert_output_contains "gravlift v2.0.0"
 }
 
 # T16: Version fallback to Electron Node execution when package.json is packaged inside app.asar
@@ -637,7 +637,7 @@ test_self_install_default() {
     # Verify that the installed symlink works by running --version
     local ver_out
     ver_out=$("$TEST_HOME/.local/bin/gravlift" --version)
-    if [[ "$ver_out" != *"gravlift v1.0.0"* ]]; then
+    if [[ "$ver_out" != *"gravlift v2.0.0"* ]]; then
         echo -e "  ${RED}FAIL:${NC} Installed symlink failed to execute correctly"
         return 1
     fi
@@ -852,7 +852,7 @@ test_uninstall_non_interactive_requires_yes() {
 test_subcommand_version() {
     run_gravlift version
     assert_success
-    assert_output_contains "gravlift v1.0.0"
+    assert_output_contains "gravlift v2.0.0"
 }
 
 # T29: Subcommand 'help' and 'help <cmd>' display usage information
@@ -974,6 +974,35 @@ test_subcommand_uninstall_all_purge() {
     assert_output_contains "gravlift tool uninstallation completed successfully"
 }
 
+# T36: Self-install detects and upgrades older installed versions of gravlift
+test_self_install_version_upgrade() {
+    # Pre-install an older version (v1.0.0)
+    mkdir -p "$TEST_HOME/opt/gravlift" "$TEST_HOME/.local/bin"
+    cat > "$TEST_HOME/opt/gravlift/gravlift" << 'EOF'
+#!/usr/bin/env bash
+GRAVLIFT_VERSION="1.0.0"
+echo "gravlift v${GRAVLIFT_VERSION}"
+EOF
+    chmod +x "$TEST_HOME/opt/gravlift/gravlift"
+    ln -s "$TEST_HOME/opt/gravlift/gravlift" "$TEST_HOME/.local/bin/gravlift"
+
+    # Run check to verify detection of older installed version
+    run_gravlift check
+    assert_success
+    assert_output_contains "Installed gravlift (v1.0.0) is older than running script (v2.0.0)"
+
+    # Run self-install to upgrade
+    run_gravlift self-install
+    assert_success
+    assert_output_contains "Upgrading installed gravlift (v1.0.0 -> v2.0.0)"
+    assert_output_contains "Script upgraded at: $TEST_HOME/opt/gravlift/gravlift"
+
+    # Running self-install again reports up-to-date
+    run_gravlift self-install
+    assert_success
+    assert_output_contains "Installed gravlift is already up to date (v2.0.0)"
+}
+
 # --- Main Test Execution ---
 
 echo -e "${BOLD}Starting gravlift test suite...${NC}"
@@ -1015,6 +1044,7 @@ run_test test_subcommand_update "Subcommand 'update' scans Downloads directory a
 run_test test_subcommand_self_install "Subcommand 'self-install' installs gravlift executable and symlink"
 run_test test_subcommand_uninstall_targets "Subcommand 'uninstall app' and 'uninstall self'"
 run_test test_subcommand_uninstall_all_purge "Subcommand 'uninstall all --purge -y' cleans everything"
+run_test test_self_install_version_upgrade "Self-install detects and upgrades older installed versions of gravlift"
 
 echo "================================================="
 echo -e "${BOLD}Test Suite Summary:${NC}"

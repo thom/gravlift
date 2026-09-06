@@ -84,6 +84,7 @@ Checks:
 - Minimum glibc version (>= 2.28)
 - Partition disk space (>= 1 GB free)
 - User bin directory presence in `$PATH`
+- Installed `gravlift` version status (detects if installed copy is outdated)
 
 ---
 
@@ -162,7 +163,7 @@ All prior invocation formats and flags continue to work seamlessly:
 | `self-install` | `--dry-run`, `--self-install-dir <dir>`, `--bin-dir <dir>` | Install `gravlift` utility to `~/opt` & PATH |
 | `uninstall [target]`| `app` (default), `self`, `all`, `--purge`, `-y`/`--yes`, `--dry-run` | Remove application, utility, or all |
 | `check` | `--bin-dir <dir>` | Run pre-flight diagnostic checks |
-| `version` | | Display version (`v1.0.0`) |
+| `version` | | Display version (`v2.0.0`) |
 | `help [command]` | | Show help for gravlift or a specific command |
 
 ---
