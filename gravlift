@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # gravlift - Smart Installer and Update Manager for Antigravity 2.0 & Antigravity IDE
-# Installs application binaries in ~/opt, manages symlinks in ~/opt/bin,
+# Installs application binaries in ~/opt, manages symlinks in ~/.local/bin,
 # and configures GNOME desktop entries.
 
 set -euo pipefail
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 
 # --- Paths & Configuration ---
 INSTALL_PARENT="$HOME/opt"
-BIN_DIR="$INSTALL_PARENT/bin"
+BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 BACKUP_DIR="$HOME/.cache/gravlift/backups"
 GRAVLIFT_VERSION="1.0.0"
@@ -126,7 +126,7 @@ print_usage() {
     echo "and ~/Downloads for files matching *antigravity*.tar.gz."
     echo
     echo "Note: Running this script will also register itself as 'gravlift'"
-    echo "in ~/opt/bin for future use."
+    echo "in ~/.local/bin for future use."
 }
 
 # Logger utilities
@@ -567,23 +567,23 @@ install_archive() {
 # Verify Path
 check_path() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-        log_warning "${BOLD}~/opt/bin${NC} is not currently in your ${BOLD}\$PATH${NC}."
+        log_warning "${BOLD}~/.local/bin${NC} is not currently in your ${BOLD}\$PATH${NC}."
         echo "To run 'antigravity' or 'antigravity-ide' from the terminal:"
         echo
         echo -e "For ${BOLD}bash${NC} or ${BOLD}zsh${NC}, add this to your config file (e.g. ~/.bashrc or ~/.zshrc):"
-        echo -e "${YELLOW}  export PATH=\"\$HOME/opt/bin:\$PATH\"${NC}"
+        echo -e "${YELLOW}  export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
         echo
         echo -e "For ${BOLD}fish${NC}, run this command once to persist the path dynamically:"
-        echo -e "${YELLOW}  fish_add_path \$HOME/opt/bin${NC}"
+        echo -e "${YELLOW}  fish_add_path \$HOME/.local/bin${NC}"
         echo "Or add this to ~/.config/fish/config.fish:"
-        echo -e "${YELLOW}  set -gx PATH \$HOME/opt/bin \$PATH${NC}"
+        echo -e "${YELLOW}  set -gx PATH \$HOME/.local/bin \$PATH${NC}"
         echo
     else
-        log_success "~/opt/bin is already in your \$PATH."
+        log_success "~/.local/bin is already in your \$PATH."
     fi
 }
 
-# Install this script itself to ~/opt/bin/gravlift
+# Install this script itself to ~/.local/bin/gravlift
 self_install() {
     local script_target="$BIN_DIR/gravlift"
     mkdir -p "$BIN_DIR"
@@ -599,7 +599,7 @@ self_install() {
     fi
 
     if [ "$current_script_abs" != "$target_script_abs" ]; then
-        log_info "Registering 'gravlift' script to ~/opt/bin..."
+        log_info "Registering 'gravlift' script to ~/.local/bin..."
         cp "$0" "$script_target"
         chmod +x "$script_target"
         log_success "Script registered. You can now run 'gravlift' from anywhere!"

@@ -450,7 +450,7 @@ test_depth_routing() {
     assert_success
     
     # Verify symlink points to the shallowest wrapper at the root, NOT the one in bin/
-    assert_link_exists "$TEST_HOME/opt/bin/antigravity-ide" "$TEST_HOME/opt/antigravity-ide/antigravity-ide"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity-ide" "$TEST_HOME/opt/antigravity-ide/antigravity-ide"
 }
 
 # T10: Clean install removes old files

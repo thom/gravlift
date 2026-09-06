@@ -68,7 +68,7 @@ To run `antigravity` or `antigravity-ide` from any terminal, add the user binary
 Append the following line to your shell configuration (e.g. `~/.bashrc` or `~/.zshrc`):
 
 ```bash
-export PATH="$HOME/opt/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Reload your shell:
@@ -80,9 +80,9 @@ source ~/.bashrc
 Run this command once to persist the path dynamically:
 
 ```fish
-fish_add_path ~/opt/bin
+fish_add_path ~/.local/bin
 ```
-*(Or add `set -gx PATH $HOME/opt/bin $PATH` to your `~/.config/fish/config.fish`)*
+*(Or add `set -gx PATH $HOME/.local/bin $PATH` to your `~/.config/fish/config.fish`)*
 
 ---
 
@@ -107,18 +107,19 @@ The installer organizes files in user-space as follows:
 ~ (HOME)
 ├── opt/
 │   ├── antigravity/             # Antigravity 2.0 Standalone Electron folder
-│   ├── antigravity-ide/         # Antigravity IDE VS Code fork folder
-│   └── bin/
-│       ├── gravlift            # Self-installed copy of this installer script
-│       ├── antigravity          # Symlink to opt/antigravity/antigravity
-│       └── antigravity-ide      # Symlink to opt/antigravity-ide/antigravity-ide
-├── .local/share/
-│   ├── applications/
-│   │   ├── antigravity.desktop  # Desktop launcher for standard app
-│   │   └── antigravity-ide.desktop # Desktop launcher for IDE
-│   └── icons/
-│       ├── antigravity.png      # Extracted branding icon
-│       └── antigravity-ide.png  # Extracted IDE branding icon
+│   └── antigravity-ide/         # Antigravity IDE VS Code fork folder
+├── .local/
+│   ├── bin/
+│   │   ├── gravlift            # Self-installed copy of this installer script
+│   │   ├── antigravity          # Symlink to ~/opt/antigravity/antigravity
+│   │   └── antigravity-ide      # Symlink to ~/opt/antigravity-ide/antigravity-ide
+│   └── share/
+│       ├── applications/
+│       │   ├── antigravity.desktop  # Desktop launcher for standard app
+│       │   └── antigravity-ide.desktop # Desktop launcher for IDE
+│       └── icons/
+│           ├── antigravity.png      # Extracted branding icon
+│           └── antigravity-ide.png  # Extracted IDE branding icon
 └── .cache/
     └── gravlift/
         ├── backups/             # Tarball backups of previous versions
