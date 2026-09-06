@@ -1,6 +1,8 @@
 # 🚀 gravlift
 
-`gravlift` is a smart installer and update manager for **Antigravity 2.0** (Electron agent orchestrator) and **Antigravity IDE** (VS Code development suite fork) on Linux. It handles binary deployment, symbolic linking, automatic updates, safety backups, and desktop integrations.
+`gravlift` is a smart installer and update manager for **Antigravity 2.0** on Linux. It handles binary deployment, symbolic linking, automatic updates, safety backups, and desktop integrations.
+
+Official releases are available at [https://antigravity.google/download](https://antigravity.google/download).
 
 ---
 
@@ -10,7 +12,7 @@
 * **Automatic Backups:** Before replacing an existing installation, a gzip compressed tarball backup is created under `~/.cache/gravlift/backups/`.
 * **Zero-Race Concurrency Locks:** Uses atomic directory locks to prevent parallel executions of `gravlift` from corrupting your installation paths.
 * **Gnome Launcher Integration:** Creates compliant `.desktop` shortcuts under `~/.local/share/applications/` and extracts app branding icons to `~/.local/share/icons/` so they appear in your app launcher menu instantly.
-* **Smart Binary Depth Routing:** Dynamically parses complex portable app structures (like VS Code layout wrappers) and routes symlinks to the shallowest executable path.
+* **Smart Binary Depth Routing:** Dynamically parses complex portable app structures (like wrapper scripts) and routes symlinks to the shallowest executable path.
 * **Advanced Version Logic:** Reads unpacked JSON package specifications or runs the Electron runtime headlessly to dynamically query versions packaged inside `.asar` files, blocking downgrades unless overridden.
 * **POSIX Compliance & Portability:** Written using safe shell patterns that run correctly on standard GNU/Busybox/POSIX setups without failing under strict `pipefail` settings.
 
@@ -26,10 +28,10 @@ If run without arguments, `gravlift` queries XDG user directories and scans the 
 ```
 
 ### 2. Manual Archive Specification
-You can pass target `.tar.gz` archives directly:
+You can pass the target `.tar.gz` archive directly:
 
 ```bash
-./gravlift ~/Downloads/Antigravity.tar.gz ~/Downloads/Antigravity_IDE.tar.gz
+./gravlift ~/Downloads/Antigravity.tar.gz
 ```
 
 ### 3. Force Reinstallation or Downgrades
@@ -62,7 +64,7 @@ Simulate all verification steps, version checks, and routing destinations withou
 
 ## Environment Setup
 
-To run `antigravity` or `antigravity-ide` from any terminal, add the user binary directory to your system path:
+To run `antigravity` from any terminal, add the user binary directory to your system path:
 
 ### For Bash & Zsh
 Append the following line to your shell configuration (e.g. `~/.bashrc` or `~/.zshrc`):
@@ -106,20 +108,16 @@ The installer organizes files in user-space as follows:
 ```
 ~ (HOME)
 ├── opt/
-│   ├── antigravity/             # Antigravity 2.0 Standalone Electron folder
-│   └── antigravity-ide/         # Antigravity IDE VS Code fork folder
+│   └── antigravity/             # Antigravity 2.0 Standalone Electron folder
 ├── .local/
 │   ├── bin/
 │   │   ├── gravlift            # Self-installed copy of this installer script
-│   │   ├── antigravity          # Symlink to ~/opt/antigravity/antigravity
-│   │   └── antigravity-ide      # Symlink to ~/opt/antigravity-ide/antigravity-ide
+│   │   └── antigravity          # Symlink to ~/opt/antigravity/antigravity
 │   └── share/
 │       ├── applications/
-│       │   ├── antigravity.desktop  # Desktop launcher for standard app
-│       │   └── antigravity-ide.desktop # Desktop launcher for IDE
+│       │   └── antigravity.desktop  # Desktop launcher for Antigravity 2.0
 │       └── icons/
-│           ├── antigravity.png      # Extracted branding icon
-│           └── antigravity-ide.png  # Extracted IDE branding icon
+│           └── antigravity.png      # Extracted branding icon
 └── .cache/
     └── gravlift/
         ├── backups/             # Tarball backups of previous versions

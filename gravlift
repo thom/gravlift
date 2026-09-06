@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# gravlift - Smart Installer and Update Manager for Antigravity 2.0 & Antigravity IDE
+# gravlift - Smart Installer and Update Manager for Antigravity 2.0
 # Installs application binaries in ~/opt, manages symlinks in ~/.local/bin,
 # and configures GNOME desktop entries.
 
@@ -107,13 +107,16 @@ print_banner() {
     echo "    | | |_ | '__/ _\` \ \ / / |    | |  _| __|"
     echo "    | |__| | | | (_| |\ V /| |____| | | | |_ "
     echo "     \_____|_|  \__,_| \_/ |______|_|_|  \__|"
-    echo -e "  Antigravity 2.0 & IDE Linux Installer/Updater v${GRAVLIFT_VERSION}${NC}"
+    echo -e "  Antigravity 2.0 Linux Installer/Updater v${GRAVLIFT_VERSION}${NC}"
     echo "================================================="
 }
 
 # Print usage
 print_usage() {
-    echo "Usage: $(basename "$0") [options] [archive1.tar.gz] [archive2.tar.gz]..."
+    echo "Usage: $(basename "$0") [options] [archive.tar.gz]"
+    echo
+    echo "gravlift installs and manages updates for Antigravity 2.0 on Linux."
+    echo "Official downloads: https://antigravity.google/download"
     echo
     echo "Options:"
     echo "  -h, --help       Show this help message"
@@ -122,7 +125,7 @@ print_usage() {
     echo "  --skip-backup    Skip creating a backup of existing installations"
     echo "  --force          Force installation even if archive version is not newer"
     echo
-    echo "If no archives are provided, the script scans the current directory"
+    echo "If no archive is provided, the script scans the current directory"
     echo "and ~/Downloads for files matching *antigravity*.tar.gz."
     echo
     echo "Note: Running this script will also register itself as 'gravlift'"
@@ -160,16 +163,16 @@ check_dependencies() {
     fi
 }
 
-# Detect app type inside a tarball
+# Detect Antigravity 2.0 inside a tarball
 detect_app_type() {
     local tarball="$1"
     
     # Method 1: Inspect archive contents (single execution)
     local contents
     if contents=$(tar -tf "$tarball" 2>/dev/null); then
-        # Check for antigravity-ide binary
+        # Exclude antigravity-ide binary if present
         if echo "$contents" | grep -qE "(^|/)antigravity-ide$"; then
-            echo "ide"
+            echo "unknown"
             return 0
         fi
         # Check for antigravity binary (standard 2.0)
@@ -179,11 +182,11 @@ detect_app_type() {
         fi
     fi
 
-    # Method 2: Fallback to filename matching
+    # Method 2: Fallback to filename matching (must match antigravity and not ide)
     local filename
     filename=$(basename "$tarball" | tr '[:upper:]' '[:lower:]')
     if [[ "$filename" =~ ide ]]; then
-        echo "ide"
+        echo "unknown"
     elif [[ "$filename" =~ antigravity ]]; then
         echo "antigravity"
     else
@@ -240,16 +243,10 @@ find_app_icon() {
 
 # Create desktop file
 create_desktop_launcher() {
-    local app_type="$1"
-    local app_dir="$2"
-    local exec_path="$3"
-    local icon_path="$4"
-    local desktop_file=""
+    local app_dir="$1"
+    local exec_path="$2"
+    local icon_path="$3"
     local icon_name="antigravity"
-
-    if [ "$app_type" = "ide" ]; then
-        icon_name="antigravity-ide"
-    fi
 
     mkdir -p "$DESKTOP_DIR"
     local local_icon_dir="$HOME/.local/share/icons"
@@ -275,25 +272,9 @@ create_desktop_launcher() {
         icon_name="system-run"
     fi
 
-    if [ "$app_type" = "ide" ]; then
-        desktop_file="$DESKTOP_DIR/antigravity-ide.desktop"
-        log_info "Creating desktop launcher: $desktop_file"
-        cat > "$desktop_file" <<EOF
-[Desktop Entry]
-Name=Antigravity IDE
-Comment=Google Antigravity Development Environment
-Exec="$exec_path" %U
-Terminal=false
-Type=Application
-Icon=$icon_name
-Categories=Development;IDE;
-StartupNotify=true
-StartupWMClass=Antigravity-IDE
-EOF
-    else
-        desktop_file="$DESKTOP_DIR/antigravity.desktop"
-        log_info "Creating desktop launcher: $desktop_file"
-        cat > "$desktop_file" <<EOF
+    local desktop_file="$DESKTOP_DIR/antigravity.desktop"
+    log_info "Creating desktop launcher: $desktop_file"
+    cat > "$desktop_file" <<EOF
 [Desktop Entry]
 Name=Antigravity 2.0
 Comment=Google Antigravity Agent Orchestrator
@@ -305,7 +286,6 @@ Categories=Development;
 StartupNotify=true
 StartupWMClass=Antigravity
 EOF
-    fi
     
     # Update GNOME desktop entry database
     if command -v update-desktop-database &>/dev/null; then
@@ -386,20 +366,16 @@ install_archive() {
     local app_type
     app_type=$(detect_app_type "$tarball")
 
-    if [ "$app_type" = "unknown" ]; then
-        log_error "Could not determine the application type for archive: $tarball"
-        log_error "Make sure the file is either Antigravity 2.0 or Antigravity IDE."
+    if [ "$app_type" != "antigravity" ]; then
+        log_error "Could not detect Antigravity 2.0 inside archive: $(basename "$tarball")"
+        log_info "Make sure the file is an Antigravity 2.0 Linux archive."
+        log_info "Official downloads: https://antigravity.google/download"
         return 1
     fi
 
     local app_label="Antigravity 2.0"
     local folder_name="antigravity"
     local exec_name="antigravity"
-    if [ "$app_type" = "ide" ]; then
-        app_label="Antigravity IDE"
-        folder_name="antigravity-ide"
-        exec_name="antigravity-ide"
-    fi
 
     log_info "Detected application: ${BOLD}$app_label${NC}"
 
@@ -558,7 +534,7 @@ install_archive() {
     else
         log_warning "Could not find a suitable icon file. Using system default icon."
     fi
-    create_desktop_launcher "$app_type" "$target_dir" "$bin_link" "$icon_path"
+    create_desktop_launcher "$target_dir" "$bin_link" "$icon_path"
 
     log_success "$app_label installed/updated successfully!"
     echo "-------------------------------------------------"
@@ -568,7 +544,7 @@ install_archive() {
 check_path() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         log_warning "${BOLD}~/.local/bin${NC} is not currently in your ${BOLD}\$PATH${NC}."
-        echo "To run 'antigravity' or 'antigravity-ide' from the terminal:"
+        echo "To run 'antigravity' from the terminal:"
         echo
         echo -e "For ${BOLD}bash${NC} or ${BOLD}zsh${NC}, add this to your config file (e.g. ~/.bashrc or ~/.zshrc):"
         echo -e "${YELLOW}  export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
@@ -730,12 +706,22 @@ main() {
         
         # Check current directory
         while IFS= read -r -d '' file; do
+            local base_lower
+            base_lower=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+            if [[ "$base_lower" =~ ide ]]; then
+                continue
+            fi
             archives+=("$file")
         done < <(find . -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
 
         # Check Downloads directory
         if [ -d "$downloads_dir" ]; then
             while IFS= read -r -d '' file; do
+                local base_lower
+                base_lower=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+                if [[ "$base_lower" =~ ide ]]; then
+                    continue
+                fi
                 archives+=("$file")
             done < <(find "$downloads_dir" -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
         fi
@@ -762,8 +748,9 @@ main() {
     fi
 
     if [ ${#archives[@]} -eq 0 ]; then
-        log_error "No Antigravity archives (*[Aa]ntigravity*.tar.gz) found to install."
-        log_info "Please provide the path to the .tar.gz archive(s) as arguments."
+        log_error "No Antigravity 2.0 archives (*[Aa]ntigravity*.tar.gz) found to install."
+        log_info "Please provide the path to the .tar.gz archive as an argument."
+        log_info "Official downloads: https://antigravity.google/download"
         print_usage
         exit 1
     fi
@@ -771,8 +758,7 @@ main() {
     log_info "Found ${#archives[@]} archive(s) to process."
     echo "-------------------------------------------------"
 
-    # Uniqueness check: at most one of each application type
-    local ide_archives=()
+    # Validate archives: must be Antigravity 2.0 and at most one archive
     local antigravity_archives=()
 
     for archive in "${archives[@]}"; do
@@ -782,35 +768,22 @@ main() {
         fi
         local app_type
         app_type=$(detect_app_type "$archive")
-        if [ "$app_type" = "ide" ]; then
-            ide_archives+=("$archive")
-        elif [ "$app_type" = "antigravity" ]; then
+        if [ "$app_type" = "antigravity" ]; then
             antigravity_archives+=("$archive")
         else
-            log_error "Could not determine the application type for archive: $archive"
+            log_error "Could not detect Antigravity 2.0 inside archive: $(basename "$archive")"
+            log_info "Make sure the file is an Antigravity 2.0 Linux archive."
+            log_info "Official downloads: https://antigravity.google/download"
             exit 1
         fi
     done
-
-    local has_error=0
-    if [ ${#ide_archives[@]} -gt 1 ]; then
-        log_error "Multiple archives found for Antigravity IDE:"
-        for arc in "${ide_archives[@]}"; do
-            echo "  - $arc"
-        done
-        has_error=1
-    fi
 
     if [ ${#antigravity_archives[@]} -gt 1 ]; then
         log_error "Multiple archives found for Antigravity 2.0:"
         for arc in "${antigravity_archives[@]}"; do
             echo "  - $arc"
         done
-        has_error=1
-    fi
-
-    if [ $has_error -eq 1 ]; then
-        log_error "Installation aborted: Please specify at most one archive for each application."
+        log_error "Installation aborted: Please specify at most one archive for Antigravity 2.0."
         exit 1
     fi
 

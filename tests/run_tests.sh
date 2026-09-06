@@ -136,10 +136,10 @@ create_mock_archive() {
         run_dir="$app_dir/bin"
         
         # Create shallow script wrapper
-        cat > "$app_dir/$exe_name" <<'EOF'
+        cat > "$app_dir/$exe_name" <<EOF
 #!/usr/bin/env bash
 # Wrapper script
-exec "$(dirname "$0")/bin/antigravity-ide" "$@"
+exec "\$(dirname "\$0")/bin/$exe_name" "\$@"
 EOF
         chmod +x "$app_dir/$exe_name"
     fi
@@ -359,8 +359,9 @@ test_auto_detection() {
     local custom_download="$TEST_HOME/custom_inbox"
     mkdir -p "$custom_download"
     
-    # Mock archives in the custom downloads folder
+    # Mock archive in the custom downloads folder
     create_mock_archive "antigravity" "$custom_download/Antigravity.tar.gz" "2.0.1"
+    # An IDE archive that should be ignored during auto-detection
     create_mock_archive "ide" "$custom_download/Antigravity IDE.tar.gz" "1.2.3"
     
     # Configure custom download dir in the mock xdg-user-dir
@@ -369,9 +370,8 @@ test_auto_detection() {
     # Run in dry run
     run_gravlift --dry-run
     assert_success
-    assert_output_contains "Found 2 archive(s) to process"
+    assert_output_contains "Found 1 archive(s) to process"
     assert_output_contains "Antigravity.tar.gz"
-    assert_output_contains "Antigravity IDE.tar.gz"
 }
 
 # T5: Uniqueness check prevents duplicate archives
@@ -441,16 +441,16 @@ test_backup_created() {
     fi
 }
 
-# T9: VS Code path-depth executable routing
+# T9: Nested executable path-depth routing
 test_depth_routing() {
-    # Create IDE archive with "nested" layout (executable at bin/antigravity-ide and a shell wrapper at antigravity-ide)
-    create_mock_archive "ide" "$TEST_HOME/Downloads/Antigravity_IDE.tar.gz" "1.0.0" "nested"
+    # Create Antigravity archive with "nested" layout (executable at bin/antigravity and a shell wrapper at antigravity)
+    create_mock_archive "antigravity" "$TEST_HOME/Downloads/Antigravity.tar.gz" "1.0.0" "nested"
     
     run_gravlift
     assert_success
     
     # Verify symlink points to the shallowest wrapper at the root, NOT the one in bin/
-    assert_link_exists "$TEST_HOME/.local/bin/antigravity-ide" "$TEST_HOME/opt/antigravity-ide/antigravity-ide"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity" "$TEST_HOME/opt/antigravity/antigravity"
 }
 
 # T10: Clean install removes old files
@@ -569,7 +569,7 @@ run_test test_uniqueness_check "Aborts if duplicate archives are found"
 run_test test_version_comparison "Semantic version comparison and update routing"
 run_test test_force_override "Override check using --force"
 run_test test_backup_created "Backup created before installation overwrite"
-run_test test_depth_routing "VS Code shallow executable path-routing"
+run_test test_depth_routing "Nested shallow executable path-routing"
 run_test test_clean_install "Existing installs are cleaned completely"
 run_test test_gnome_launcher "GNOME launcher creation and app.asar icon extraction"
 run_test test_concurrency_lock "Concurrency PID locking protects install path"
