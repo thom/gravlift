@@ -197,35 +197,111 @@ print_banner() {
 
 # Print usage
 print_usage() {
-    echo "Usage: $(basename "$0") [options] [archive.tar.gz]"
+    echo "Usage: $(basename "$0") <command> [options] [arguments]"
     echo
-    echo "gravlift installs and manages updates for Antigravity 2.0 on Linux."
+    echo "gravlift is a smart installer and update manager for Antigravity 2.0 on Linux."
     echo "Official downloads: https://antigravity.google/download"
     echo
-    echo "Options:"
-    echo "  -h, --help                Show this help message"
-    echo "  -v, --version             Show script version"
-    echo "  --dry-run                 Simulate the operation without modifying files"
-    echo "  --skip-backup             Skip creating a backup of existing installations"
-    echo "  --force                   Force installation even if archive version is not newer"
-    echo "  --self-install            Install gravlift to ~/opt/gravlift and link to user bin"
-    echo "  --no-self-install         Do not install/update gravlift itself when installing apps"
-    echo "  --self-install-dir <dir>  Override self-install directory (default: ~/opt/gravlift)"
-    echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
-    echo "  --uninstall               Uninstall Antigravity 2.0 and its desktop integration"
-    echo "  --uninstall-self          Uninstall the gravlift tool itself"
-    echo "  --uninstall-all           Uninstall Antigravity 2.0, gravlift, and related files"
-    echo "  --purge                   Purge backups and config files during uninstallation"
-    echo "  -y, --yes                 Bypass confirmation prompts during uninstallation"
+    echo "Commands:"
+    echo "  install [archive.tar.gz]   Install Antigravity 2.0 from an archive (or auto-scan)"
+    echo "  update                     Scan download directories and install available updates"
+    echo "  self-install               Install gravlift to ~/opt/gravlift and link to user bin"
+    echo "  uninstall [target]         Uninstall Antigravity (app), gravlift (self), or both (all)"
+    echo "  check                      Run pre-flight diagnostic checks (glibc, disk space, PATH)"
+    echo "  version                    Display gravlift script version"
+    echo "  help [command]             Show help documentation for gravlift or a command"
     echo
-    echo "If no archive is provided, the script scans the current directory"
-    echo "and your configured download directory (via xdg-user-dir DOWNLOAD,"
-    echo "falling back to ~/Downloads) for files matching *antigravity*.tar.gz."
+    echo "Global Options:"
+    echo "  -h, --help                 Show this help message"
+    echo "  -v, --version              Show script version"
     echo
-    echo "Configuration:"
-    echo "  Custom paths and settings can also be set in ~/.config/gravlift/config or via"
-    echo "  environment variables (GRAVLIFT_INSTALL_DIR, GRAVLIFT_BIN_DIR,"
-    echo "  GRAVLIFT_AUTO_SELF_INSTALL=false)."
+    echo "Legacy Compatibility:"
+    echo "  Direct invocations and legacy flags (e.g. '$(basename "$0") archive.tar.gz',"
+    echo "  '--self-install', '--uninstall', '--dry-run') are fully supported."
+    echo
+    echo "Run '$(basename "$0") help <command>' for detailed options on a specific command."
+}
+
+# Print command-specific help
+print_command_help() {
+    local cmd="${1:-}"
+    case "$cmd" in
+        install)
+            echo "Usage: $(basename "$0") install [options] [archive.tar.gz]"
+            echo
+            echo "Install Antigravity 2.0 from a .tar.gz archive. If no archive is specified,"
+            echo "scans the current directory and your configured Downloads directory."
+            echo
+            echo "Options:"
+            echo "  --dry-run                 Simulate installation without modifying files"
+            echo "  --skip-backup             Skip creating a backup of existing installations"
+            echo "  --force                   Force installation even if archive version is not newer"
+            echo "  --no-self-install         Do not install/update gravlift itself during installation"
+            echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
+            ;;
+        update)
+            echo "Usage: $(basename "$0") update [options]"
+            echo
+            echo "Scan the current directory and your configured Downloads directory for newer"
+            echo "Antigravity 2.0 releases and install them automatically."
+            echo
+            echo "Options:"
+            echo "  --dry-run                 Simulate update without modifying files"
+            echo "  --skip-backup             Skip creating a backup of existing installations"
+            echo "  --force                   Force installation even if archive version is not newer"
+            echo "  --no-self-install         Do not install/update gravlift itself during installation"
+            echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
+            ;;
+        self-install)
+            echo "Usage: $(basename "$0") self-install [options]"
+            echo
+            echo "Install the gravlift script to ~/opt/gravlift and symlink to user bin directory."
+            echo
+            echo "Options:"
+            echo "  --dry-run                 Simulate self-installation without modifying files"
+            echo "  --self-install-dir <dir>  Override self-install directory (default: ~/opt/gravlift)"
+            echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
+            ;;
+        uninstall)
+            echo "Usage: $(basename "$0") uninstall [target] [options]"
+            echo
+            echo "Uninstall Antigravity 2.0, the gravlift tool, or everything."
+            echo
+            echo "Targets:"
+            echo "  app                       Uninstall Antigravity 2.0 application (default)"
+            echo "  self                      Uninstall the gravlift tool itself"
+            echo "  all                       Uninstall Antigravity 2.0, gravlift, and related files"
+            echo
+            echo "Options:"
+            echo "  --dry-run                 Simulate uninstallation without removing files"
+            echo "  --purge                   Purge backups and config files during uninstallation"
+            echo "  -y, --yes                 Bypass confirmation prompts (for non-interactive use)"
+            echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
+            echo "  --self-install-dir <dir>  Override self-install directory (default: ~/opt/gravlift)"
+            ;;
+        check)
+            echo "Usage: $(basename "$0") check [options]"
+            echo
+            echo "Perform pre-flight diagnostics including glibc compatibility, required tools,"
+            echo "target partition disk space, and PATH environment configuration."
+            echo
+            echo "Options:"
+            echo "  --bin-dir <dir>           Override user bin directory to check (default: ~/.local/bin)"
+            ;;
+        version)
+            echo "Usage: $(basename "$0") version"
+            echo
+            echo "Display the gravlift script version."
+            ;;
+        help)
+            echo "Usage: $(basename "$0") help [command]"
+            echo
+            echo "Show general help or detailed help for a specific command."
+            ;;
+        *)
+            print_usage
+            ;;
+    esac
 }
 
 # Logger utilities
@@ -942,7 +1018,7 @@ check_disk_space() {
     fi
 
     local avail_kb
-    avail_kb=$(df -k "$check_dir" | tail -n 1 | awk '{print $4}') || avail_kb=""
+    avail_kb=$(df -Pk "$check_dir" 2>/dev/null | tail -n 1 | awk '{print $4}') || avail_kb=""
     
     if [ -n "$avail_kb" ]; then
         if [[ "$avail_kb" =~ ^[0-9]+$ ]]; then
@@ -959,6 +1035,405 @@ check_disk_space() {
         fi
     fi
 }
+
+# --- Subcommand Handlers ---
+
+cmd_version() {
+    echo "gravlift v${GRAVLIFT_VERSION}"
+}
+
+cmd_help() {
+    if [ $# -gt 0 ]; then
+        print_command_help "$1"
+    else
+        print_usage
+    fi
+}
+
+cmd_check() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                print_command_help "check"
+                return 0
+                ;;
+            --bin-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "check"
+                    exit 1
+                fi
+                CLI_BIN_DIR="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option for check: $1"
+                print_command_help "check"
+                exit 1
+                ;;
+            *)
+                log_error "Unexpected argument for check: $1"
+                print_command_help "check"
+                exit 1
+                ;;
+        esac
+    done
+
+    BIN_DIR=$(resolve_bin_dir)
+    SELF_INSTALL_DIR=$(resolve_self_install_dir)
+
+    log_info "Running pre-flight diagnostics..."
+    echo "================================================="
+    check_dependencies
+    log_success "All required system dependencies are installed."
+    check_glibc_version
+    check_disk_space
+    check_path
+    log_success "Diagnostics completed."
+}
+
+cmd_self_install() {
+    local dry_run="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                print_command_help "self-install"
+                return 0
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            --self-install-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "self-install"
+                    exit 1
+                fi
+                CLI_SELF_INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --bin-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "self-install"
+                    exit 1
+                fi
+                CLI_BIN_DIR="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option for self-install: $1"
+                print_command_help "self-install"
+                exit 1
+                ;;
+            *)
+                log_error "Unexpected argument for self-install: $1"
+                print_command_help "self-install"
+                exit 1
+                ;;
+        esac
+    done
+
+    BIN_DIR=$(resolve_bin_dir)
+    SELF_INSTALL_DIR=$(resolve_self_install_dir)
+
+    if [ "$dry_run" = "true" ]; then
+        log_info "[DRY-RUN] Would install 'gravlift' script to $SELF_INSTALL_DIR/gravlift"
+        log_info "[DRY-RUN] Would symlink $BIN_DIR/gravlift -> $SELF_INSTALL_DIR/gravlift"
+        check_path
+        return 0
+    fi
+
+    self_install
+    check_path
+}
+
+cmd_uninstall() {
+    local target="app"
+    local dry_run="false"
+    local purge_mode="false"
+    YES_MODE="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                print_command_help "uninstall"
+                return 0
+                ;;
+            app|antigravity)
+                target="app"
+                shift
+                ;;
+            self|gravlift)
+                target="self"
+                shift
+                ;;
+            all|everything)
+                target="all"
+                shift
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            --purge)
+                purge_mode="true"
+                shift
+                ;;
+            -y|--yes)
+                YES_MODE="true"
+                shift
+                ;;
+            --self-install-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "uninstall"
+                    exit 1
+                fi
+                CLI_SELF_INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --bin-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "uninstall"
+                    exit 1
+                fi
+                CLI_BIN_DIR="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option for uninstall: $1"
+                print_command_help "uninstall"
+                exit 1
+                ;;
+            *)
+                log_error "Unknown uninstall target: $1"
+                print_command_help "uninstall"
+                exit 1
+                ;;
+        esac
+    done
+
+    BIN_DIR=$(resolve_bin_dir)
+    SELF_INSTALL_DIR=$(resolve_self_install_dir)
+
+    case "$target" in
+        app)
+            uninstall_antigravity "$dry_run" "$purge_mode"
+            ;;
+        self)
+            uninstall_self "$dry_run" "$purge_mode"
+            ;;
+        all)
+            if [ "$dry_run" = "true" ]; then
+                uninstall_antigravity "true" "$purge_mode"
+                uninstall_self "true" "$purge_mode"
+                return 0
+            fi
+            if ! confirm_action "Are you sure you want to uninstall Antigravity 2.0, gravlift, and related files?"; then
+                log_info "Uninstallation canceled."
+                return 0
+            fi
+            YES_MODE="true"
+            uninstall_antigravity "false" "$purge_mode"
+            uninstall_self "false" "$purge_mode"
+            ;;
+    esac
+}
+
+cmd_install() {
+    local dry_run="false"
+    local skip_backup="false"
+    local force="false"
+    local auto_self_install="true"
+    local archives=()
+
+    # Determine default auto self-install behavior from config or environment
+    if [[ "${CONFIG_AUTO_SELF_INSTALL,,}" =~ ^(false|0|no|off)$ ]] || \
+       [[ "${GRAVLIFT_AUTO_SELF_INSTALL:-}" =~ ^(false|0|no|off)$ ]] || \
+       [ -n "${GRAVLIFT_NO_SELF_INSTALL:-}" ]; then
+        auto_self_install="false"
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                print_command_help "install"
+                return 0
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            --skip-backup)
+                skip_backup="true"
+                shift
+                ;;
+            --force)
+                force="true"
+                shift
+                ;;
+            --no-self-install|--no-install-self)
+                auto_self_install="false"
+                shift
+                ;;
+            --bin-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "install"
+                    exit 1
+                fi
+                CLI_BIN_DIR="$2"
+                shift 2
+                ;;
+            --self-install-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_command_help "install"
+                    exit 1
+                fi
+                CLI_SELF_INSTALL_DIR="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option for install: $1"
+                print_command_help "install"
+                exit 1
+                ;;
+            *)
+                archives+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    BIN_DIR=$(resolve_bin_dir)
+    SELF_INSTALL_DIR=$(resolve_self_install_dir)
+
+    # Auto-detection if no archives provided
+    if [ ${#archives[@]} -eq 0 ]; then
+        local downloads_dir="$HOME/Downloads"
+        if command -v xdg-user-dir &>/dev/null; then
+            downloads_dir=$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")
+        fi
+
+        log_info "No archives specified. Scanning current directory and $downloads_dir for archives..."
+        
+        # Check current directory
+        while IFS= read -r -d '' file; do
+            if [ "$(detect_app_type "$file")" = "antigravity" ]; then
+                archives+=("$file")
+            fi
+        done < <(find . -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
+
+        # Check Downloads directory
+        if [ -d "$downloads_dir" ]; then
+            while IFS= read -r -d '' file; do
+                if [ "$(detect_app_type "$file")" = "antigravity" ]; then
+                    archives+=("$file")
+                fi
+            done < <(find "$downloads_dir" -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
+        fi
+
+        # Remove duplicates
+        if [ ${#archives[@]} -gt 0 ]; then
+            local unique_archives=()
+            for arc in "${archives[@]}"; do
+                local abs_arc
+                abs_arc=$(realpath "$arc")
+                local found=0
+                for u_arc in "${unique_archives[@]:-}"; do
+                    if [ "$u_arc" = "$abs_arc" ]; then
+                        found=1
+                        break
+                    fi
+                done
+                if [ $found -eq 0 ]; then
+                    unique_archives+=("$abs_arc")
+                fi
+            done
+            archives=("${unique_archives[@]}")
+        fi
+    fi
+
+    if [ ${#archives[@]} -eq 0 ]; then
+        log_error "No Antigravity 2.0 archives (*[Aa]ntigravity*.tar.gz) found to install."
+        log_info "Please provide the path to the .tar.gz archive as an argument."
+        log_info "Official downloads: https://antigravity.google/download"
+        print_command_help "install"
+        exit 1
+    fi
+
+    log_info "Found ${#archives[@]} archive(s) to process."
+    echo "-------------------------------------------------"
+
+    # Validate archives: must be Antigravity 2.0 and at most one archive
+    local antigravity_archives=()
+
+    for archive in "${archives[@]}"; do
+        if [ ! -f "$archive" ]; then
+            log_error "Archive file not found: $archive"
+            exit 1
+        fi
+        local app_type
+        app_type=$(detect_app_type "$archive")
+        if [ "$app_type" = "antigravity" ]; then
+            antigravity_archives+=("$archive")
+        else
+            log_error "Could not detect Antigravity 2.0 inside archive: $(basename "$archive")"
+            log_info "Make sure the file is an Antigravity 2.0 Linux archive."
+            log_info "Official downloads: https://antigravity.google/download"
+            exit 1
+        fi
+    done
+
+    if [ ${#antigravity_archives[@]} -gt 1 ]; then
+        log_error "Multiple archives found for Antigravity 2.0:"
+        for arc in "${antigravity_archives[@]}"; do
+            echo "  - $arc"
+        done
+        log_error "Installation aborted: Please specify at most one archive for Antigravity 2.0."
+        exit 1
+    fi
+
+    # Pre-flight check: Disk space verification
+    if [ "$dry_run" = "false" ]; then
+        check_disk_space
+    fi
+
+    local success_count=0
+    for archive in "${archives[@]}"; do
+        if install_archive "$archive" "$dry_run" "$skip_backup" "$force"; then
+            success_count=$((success_count + 1))
+        fi
+    done
+
+    if [ "$dry_run" = "false" ] && [ $success_count -gt 0 ]; then
+        if [ "$auto_self_install" = "true" ]; then
+            self_install
+        else
+            log_info "Skipping gravlift self-installation (opted out)."
+        fi
+    fi
+
+    check_path
+
+    if [ $success_count -eq ${#archives[@]} ]; then
+        log_success "All operations completed successfully."
+    else
+        log_warning "Some installations failed ($success_count/${#archives[@]} succeeded)."
+        exit 1
+    fi
+}
+
+cmd_update() {
+    cmd_install "$@"
+}
+
+# --- Main Entry Point & Command Dispatcher ---
 
 main() {
     # Register trap handler for temporary files and locking cleanup
@@ -979,6 +1454,51 @@ main() {
     # Load configuration
     load_config
 
+    # Check for empty invocation -> default to update (scans downloads)
+    if [ $# -eq 0 ]; then
+        cmd_update
+        return 0
+    fi
+
+    # Check for top-level subcommands
+    case "$1" in
+        install)
+            shift
+            cmd_install "$@"
+            return 0
+            ;;
+        update)
+            shift
+            cmd_update "$@"
+            return 0
+            ;;
+        self-install)
+            shift
+            cmd_self_install "$@"
+            return 0
+            ;;
+        uninstall)
+            shift
+            cmd_uninstall "$@"
+            return 0
+            ;;
+        check)
+            shift
+            cmd_check "$@"
+            return 0
+            ;;
+        version)
+            cmd_version
+            return 0
+            ;;
+        help)
+            shift
+            cmd_help "$@"
+            return 0
+            ;;
+    esac
+
+    # Backward compatibility: Parse legacy flags and options
     local dry_run="false"
     local skip_backup="false"
     local force="false"
@@ -996,7 +1516,6 @@ main() {
         auto_self_install="false"
     fi
 
-    # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)
@@ -1004,7 +1523,7 @@ main() {
                 exit 0
                 ;;
             -v|--version)
-                echo "gravlift v${GRAVLIFT_VERSION}"
+                cmd_version
                 exit 0
                 ;;
             --dry-run)
@@ -1077,166 +1596,34 @@ main() {
         esac
     done
 
-    # Resolve paths
-    BIN_DIR=$(resolve_bin_dir)
-    SELF_INSTALL_DIR=$(resolve_self_install_dir)
-
-    # Handle uninstallation modes
+    # Route legacy mode flags to subcommand handlers
     if [ -n "$uninstall_mode" ]; then
-        case "$uninstall_mode" in
-            app)
-                uninstall_antigravity "$dry_run" "$purge_mode"
-                exit 0
-                ;;
-            self)
-                uninstall_self "$dry_run" "$purge_mode"
-                exit 0
-                ;;
-            all)
-                if [ "$dry_run" = "true" ]; then
-                    uninstall_antigravity "true" "$purge_mode"
-                    uninstall_self "true" "$purge_mode"
-                    exit 0
-                fi
-                if ! confirm_action "Are you sure you want to uninstall Antigravity 2.0, gravlift, and related files?"; then
-                    log_info "Uninstallation canceled."
-                    exit 0
-                fi
-                YES_MODE="true"
-                uninstall_antigravity "false" "$purge_mode"
-                uninstall_self "false" "$purge_mode"
-                exit 0
-                ;;
-        esac
+        local uninstall_args=("$uninstall_mode")
+        [ "$dry_run" = "true" ] && uninstall_args+=("--dry-run")
+        [ "$purge_mode" = "true" ] && uninstall_args+=("--purge")
+        [ "$YES_MODE" = "true" ] && uninstall_args+=("-y")
+        cmd_uninstall "${uninstall_args[@]}"
+        return 0
     fi
 
-    # Handle standalone self-installation
     if [ "$self_install_only" = "true" ]; then
-        if [ "$dry_run" = "true" ]; then
-            log_info "[DRY-RUN] Would install 'gravlift' script to $SELF_INSTALL_DIR/gravlift"
-            log_info "[DRY-RUN] Would symlink $BIN_DIR/gravlift -> $SELF_INSTALL_DIR/gravlift"
-            check_path
-            exit 0
-        fi
-        self_install
-        check_path
-        exit 0
+        local self_args=()
+        [ "$dry_run" = "true" ] && self_args+=("--dry-run")
+        cmd_self_install "${self_args[@]}"
+        return 0
     fi
 
-    # Auto-detection if no archives provided
-    if [ ${#archives[@]} -eq 0 ]; then
-        local downloads_dir="$HOME/Downloads"
-        if command -v xdg-user-dir &>/dev/null; then
-            downloads_dir=$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")
-        fi
-
-        log_info "No archives specified. Scanning current directory and $downloads_dir for archives..."
-        
-        # Check current directory
-        while IFS= read -r -d '' file; do
-            if [ "$(detect_app_type "$file")" = "antigravity" ]; then
-                archives+=("$file")
-            fi
-        done < <(find . -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
-
-        # Check Downloads directory
-        if [ -d "$downloads_dir" ]; then
-            while IFS= read -r -d '' file; do
-                if [ "$(detect_app_type "$file")" = "antigravity" ]; then
-                    archives+=("$file")
-                fi
-            done < <(find "$downloads_dir" -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
-        fi
-
-        # Remove duplicates
-        if [ ${#archives[@]} -gt 0 ]; then
-            local unique_archives=()
-            for arc in "${archives[@]}"; do
-                local abs_arc
-                abs_arc=$(realpath "$arc")
-                local found=0
-                for u_arc in "${unique_archives[@]:-}"; do
-                    if [ "$u_arc" = "$abs_arc" ]; then
-                        found=1
-                        break
-                    fi
-                done
-                if [ $found -eq 0 ]; then
-                    unique_archives+=("$abs_arc")
-                fi
-            done
-            archives=("${unique_archives[@]}")
-        fi
+    # Forward remaining options & archives to cmd_install
+    local install_args=()
+    [ "$dry_run" = "true" ] && install_args+=("--dry-run")
+    [ "$skip_backup" = "true" ] && install_args+=("--skip-backup")
+    [ "$force" = "true" ] && install_args+=("--force")
+    [ "$auto_self_install" = "false" ] && install_args+=("--no-self-install")
+    if [ ${#archives[@]} -gt 0 ]; then
+        install_args+=("${archives[@]}")
     fi
 
-    if [ ${#archives[@]} -eq 0 ]; then
-        log_error "No Antigravity 2.0 archives (*[Aa]ntigravity*.tar.gz) found to install."
-        log_info "Please provide the path to the .tar.gz archive as an argument."
-        log_info "Official downloads: https://antigravity.google/download"
-        print_usage
-        exit 1
-    fi
-
-    log_info "Found ${#archives[@]} archive(s) to process."
-    echo "-------------------------------------------------"
-
-    # Validate archives: must be Antigravity 2.0 and at most one archive
-    local antigravity_archives=()
-
-    for archive in "${archives[@]}"; do
-        if [ ! -f "$archive" ]; then
-            log_error "Archive file not found: $archive"
-            exit 1
-        fi
-        local app_type
-        app_type=$(detect_app_type "$archive")
-        if [ "$app_type" = "antigravity" ]; then
-            antigravity_archives+=("$archive")
-        else
-            log_error "Could not detect Antigravity 2.0 inside archive: $(basename "$archive")"
-            log_info "Make sure the file is an Antigravity 2.0 Linux archive."
-            log_info "Official downloads: https://antigravity.google/download"
-            exit 1
-        fi
-    done
-
-    if [ ${#antigravity_archives[@]} -gt 1 ]; then
-        log_error "Multiple archives found for Antigravity 2.0:"
-        for arc in "${antigravity_archives[@]}"; do
-            echo "  - $arc"
-        done
-        log_error "Installation aborted: Please specify at most one archive for Antigravity 2.0."
-        exit 1
-    fi
-
-    # Pre-flight check: Disk space verification
-    if [ "$dry_run" = "false" ]; then
-        check_disk_space
-    fi
-
-    local success_count=0
-    for archive in "${archives[@]}"; do
-        if install_archive "$archive" "$dry_run" "$skip_backup" "$force"; then
-            success_count=$((success_count + 1))
-        fi
-    done
-
-    if [ "$dry_run" = "false" ] && [ $success_count -gt 0 ]; then
-        if [ "$auto_self_install" = "true" ]; then
-            self_install
-        else
-            log_info "Skipping gravlift self-installation (opted out)."
-        fi
-    fi
-
-    check_path
-
-    if [ $success_count -eq ${#archives[@]} ]; then
-        log_success "All operations completed successfully."
-    else
-        log_warning "Some installations failed ($success_count/${#archives[@]} succeeded)."
-        exit 1
-    fi
+    cmd_install "${install_args[@]}"
 }
 
 main "$@"

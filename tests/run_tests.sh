@@ -159,9 +159,9 @@ reset_mocks() {
 
 # --- Mock Archive Generator ---
 
-# Creates a mock Antigravity or Antigravity IDE tarball
+# Creates a mock application tarball (e.g. "antigravity" or foreign app)
 create_mock_archive() {
-    local type="$1"       # "antigravity" or "ide"
+    local type="$1"       # executable name (e.g. "antigravity" or "other-app")
     local dest_path="$2"  # output archive path
     local version="$3"    # version inside package.json
     local layout="${4:-standard}" # "standard", "nested", or "no-json"
@@ -848,6 +848,132 @@ test_uninstall_non_interactive_requires_yes() {
     assert_output_contains "Non-interactive environment detected. Use '-y' or '--yes'"
 }
 
+# T28: Subcommand 'version' displays version
+test_subcommand_version() {
+    run_gravlift version
+    assert_success
+    assert_output_contains "gravlift v1.0.0"
+}
+
+# T29: Subcommand 'help' and 'help <cmd>' display usage information
+test_subcommand_help() {
+    run_gravlift help
+    assert_success
+    assert_output_contains "Commands:"
+    assert_output_contains "install [archive.tar.gz]"
+
+    run_gravlift help install
+    assert_success
+    assert_output_contains "Usage: gravlift install [options] [archive.tar.gz]"
+
+    run_gravlift help uninstall
+    assert_success
+    assert_output_contains "Usage: gravlift uninstall [target] [options]"
+}
+
+# T30: Subcommand 'check' runs pre-flight diagnostics
+test_subcommand_check() {
+    run_gravlift check
+    assert_success
+    assert_output_contains "Running pre-flight diagnostics..."
+    assert_output_contains "All required system dependencies are installed."
+    assert_output_contains "Disk space check passed"
+    assert_output_contains "Diagnostics completed."
+}
+
+# T31: Subcommand 'install' installs archive with proper routing and desktop entries
+test_subcommand_install() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-subcmd-install.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+
+    run_gravlift install "$archive"
+    assert_success
+
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity"
+    assert_file_exists "$TEST_HOME/.local/share/applications/antigravity.desktop"
+    assert_output_contains "Antigravity 2.0 installed/updated successfully"
+}
+
+# T32: Subcommand 'update' scans Downloads directory and installs
+test_subcommand_update() {
+    local archive="$TEST_HOME/Downloads/Antigravity-update-test.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.2.0"
+
+    run_gravlift update
+    assert_success
+
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity"
+    assert_output_contains "Found 1 archive(s) to process"
+    assert_output_contains "Antigravity 2.0 installed/updated successfully"
+}
+
+# T33: Subcommand 'self-install' installs gravlift executable and symlink
+test_subcommand_self_install() {
+    run_gravlift self-install
+    assert_success
+
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+    assert_link_exists "$TEST_HOME/.local/bin/gravlift"
+    assert_output_contains "Script installed at: $TEST_HOME/opt/gravlift/gravlift"
+}
+
+# T34: Subcommand 'uninstall app' and 'uninstall self'
+test_subcommand_uninstall_targets() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-uninstall-target.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+
+    # Install both app and self
+    run_gravlift install "$archive"
+    assert_success
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+
+    # Uninstall app target
+    run_gravlift uninstall app -y
+    assert_success
+    assert_file_not_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+    assert_output_contains "Antigravity 2.0 uninstallation completed successfully"
+
+    # Uninstall self target
+    run_gravlift uninstall self -y
+    assert_success
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    assert_output_contains "gravlift tool uninstallation completed successfully"
+}
+
+# T35: Subcommand 'uninstall all --purge -y' cleans everything
+test_subcommand_uninstall_all_purge() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-uninstall-all-subcmd.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+
+    run_gravlift install "$archive"
+    assert_success
+
+    mkdir -p "$TEST_HOME/.cache/gravlift/backups"
+    touch "$TEST_HOME/.cache/gravlift/backups/test.tar.gz"
+    mkdir -p "$TEST_HOME/.config/gravlift"
+    touch "$TEST_HOME/.config/gravlift/config"
+
+    run_gravlift uninstall all --purge -y
+    assert_success
+
+    assert_file_not_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ -d "$TEST_HOME/.cache/gravlift/backups" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected backups to be purged"
+        return 1
+    fi
+    if [ -d "$TEST_HOME/.config/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected config to be purged"
+        return 1
+    fi
+    assert_output_contains "Antigravity 2.0 uninstallation completed successfully"
+    assert_output_contains "gravlift tool uninstallation completed successfully"
+}
+
 # --- Main Test Execution ---
 
 echo -e "${BOLD}Starting gravlift test suite...${NC}"
@@ -881,6 +1007,14 @@ run_test test_uninstall_antigravity_dry_run "Uninstall dry run displays actions 
 run_test test_uninstall_self "Uninstall gravlift tool removes executable and symlink"
 run_test test_uninstall_all_with_purge "Uninstall all with --purge removes app, tool, backups, and config"
 run_test test_uninstall_non_interactive_requires_yes "Non-interactive uninstallation requires -y/--yes"
+run_test test_subcommand_version "Subcommand 'version' displays version"
+run_test test_subcommand_help "Subcommand 'help' and 'help <cmd>' display usage information"
+run_test test_subcommand_check "Subcommand 'check' runs pre-flight diagnostics"
+run_test test_subcommand_install "Subcommand 'install' installs archive with proper routing and desktop entries"
+run_test test_subcommand_update "Subcommand 'update' scans Downloads directory and installs"
+run_test test_subcommand_self_install "Subcommand 'self-install' installs gravlift executable and symlink"
+run_test test_subcommand_uninstall_targets "Subcommand 'uninstall app' and 'uninstall self'"
+run_test test_subcommand_uninstall_all_purge "Subcommand 'uninstall all --purge -y' cleans everything"
 
 echo "================================================="
 echo -e "${BOLD}Test Suite Summary:${NC}"

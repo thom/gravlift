@@ -8,94 +8,134 @@ Official releases are available at [https://antigravity.google/download](https:/
 
 ## Key Features
 
-* **Atomic Directory Swap:** Installs are staged in `.new` folders and swapped atomically to prevent leaving files in a corrupted state if interrupted.
-* **Automatic Backups:** Before replacing an existing installation, a gzip compressed tarball backup is created under `~/.cache/gravlift/backups/`.
-* **Zero-Race Concurrency Locks:** Uses atomic directory locks to prevent parallel executions of `gravlift` from corrupting your installation paths.
-* **Gnome Launcher Integration:** Creates compliant `.desktop` shortcuts under `~/.local/share/applications/` and extracts app branding icons to `~/.local/share/icons/` so they appear in your app launcher menu instantly.
-* **Smart Binary Depth Routing:** Dynamically parses complex portable app structures (like wrapper scripts) and routes symlinks to the shallowest executable path.
-* **Advanced Version Logic:** Reads unpacked JSON package specifications or runs the Electron runtime headlessly to dynamically query versions packaged inside `.asar` files, blocking downgrades unless overridden.
-* **POSIX Compliance & Portability:** Written using safe shell patterns that run correctly on standard GNU/Busybox/POSIX setups without failing under strict `pipefail` settings.
+* **Safe installs & updates:** Stages extractions before swapping files and creates a backup in `~/.cache/gravlift/backups/` before upgrades.
+* **Desktop integration:** Creates `.desktop` application launchers and extracts icons so Antigravity shows up in your application menu.
+* **Downgrade protection:** Checks version numbers before installing to prevent accidental downgrades (override with `--force`).
+* **Self-managing:** Can install itself to `~/.local/bin` and provides clean uninstall commands (`app`, `self`, or `all`).
+* **Standalone:** A single bash script with no external dependencies beyond standard core tools.
 
 ---
 
 ## Installation & Usage
 
-### 1. Automatic Archive Scan
-If run without arguments, `gravlift` queries your configured download directory via `xdg-user-dir DOWNLOAD` (falling back to `~/Downloads`). It scans both the current working directory and that download folder for archives matching `*antigravity*.tar.gz` (case-insensitively).
+`gravlift` supports both modern Git-style subcommands and direct backward-compatible invocations:
 
 ```bash
-./gravlift
+gravlift <command> [options] [arguments]
 ```
 
-### 2. Manual Archive Specification
-You can also pass the target `.tar.gz` archive directly:
+### Subcommands Overview
 
+| Command | Description |
+| :--- | :--- |
+| `install` | Install Antigravity 2.0 from an archive or auto-scan Downloads |
+| `update` | Scan download folders and apply available updates |
+| `self-install` | Install `gravlift` to `~/opt/gravlift` and link to user bin |
+| `uninstall` | Uninstall Antigravity (`app`), `gravlift` (`self`), or everything (`all`) |
+| `check` | Run pre-flight diagnostics (dependencies, glibc, disk space, PATH) |
+| `version` | Display `gravlift` version |
+| `help` | Show command reference or detailed command help |
+
+---
+
+### 1. Installing Antigravity 2.0 (`install`)
+
+Pass an archive file directly:
 ```bash
-./gravlift ~/Downloads/Antigravity.tar.gz
+gravlift install ~/Downloads/Antigravity.tar.gz
 ```
 
-### 3. Force Reinstallation or Downgrades
-Use the `--force` flag to overwrite or downgrade installations:
-
+Or omit the archive argument to automatically scan the current directory and your configured download directory (`xdg-user-dir DOWNLOAD` or `~/Downloads`):
 ```bash
-./gravlift --force ~/Downloads/Antigravity.tar.gz
+gravlift install
 ```
 
-### 4. dry-run Mode
-Simulate all verification steps, version checks, and routing destinations without writing any changes:
-
+#### Force Reinstallation or Downgrades
+Use `--force` to install even if the archive version is not newer than the currently installed version:
 ```bash
-./gravlift --dry-run ~/Downloads/Antigravity.tar.gz
+gravlift install --force ~/Downloads/Antigravity.tar.gz
 ```
 
-### 5. Installing the `gravlift` Tool
-You can install `gravlift` itself as a system command without installing an archive:
-
+#### Dry Run Mode
+Simulate extraction, version checks, and paths without modifying the filesystem:
 ```bash
-./gravlift --self-install
+gravlift install --dry-run ~/Downloads/Antigravity.tar.gz
 ```
 
-By default, the script executable is placed in `~/opt/gravlift/gravlift` and a symlink is created in your user binary directory (`~/.local/bin/gravlift`, discovered dynamically via `systemd-path user-binaries`).
+---
 
-You can override these locations with flags:
+### 2. Updating Antigravity (`update`)
+
+Scan download directories and install newer versions automatically:
 ```bash
-./gravlift --self-install --self-install-dir ~/tools/gravlift --bin-dir ~/bin
+gravlift update
 ```
 
-Or configure defaults in `~/.config/gravlift/config`:
+---
+
+### 3. Pre-Flight Diagnostics (`check`)
+
+Verify system prerequisites without installing:
+```bash
+gravlift check
+```
+Checks:
+- Command dependencies (`tar`, `find`, `cut`, `uniq`, `mktemp`, `ln`, `rm`, `cp`, `realpath`)
+- Minimum glibc version (>= 2.28)
+- Partition disk space (>= 1 GB free)
+- User bin directory presence in `$PATH`
+
+---
+
+### 4. Installing the `gravlift` Tool (`self-install`)
+
+Install `gravlift` into `~/opt/gravlift` and symlink to `~/.local/bin/gravlift`:
+```bash
+gravlift self-install
+```
+
+Override default directories:
+```bash
+gravlift self-install --self-install-dir ~/tools/gravlift --bin-dir ~/bin
+```
+
+Configure persistent defaults in `~/.config/gravlift/config`:
 ```ini
 SELF_INSTALL_DIR=~/opt/gravlift
 BIN_DIR=~/.local/bin
 AUTO_SELF_INSTALL=true   # Set to false to opt out of auto-installing gravlift during app installs
 ```
 
-#### Opting Out of Automatic Self-Installation
-When installing Antigravity, `gravlift` automatically self-installs to your path so you can update Antigravity easily in the future. To opt out, pass `--no-self-install`:
-
+#### Opting Out of Auto Self-Installation
+When installing Antigravity, `gravlift` automatically self-installs to your path so you can update Antigravity easily in the future. To opt out:
 ```bash
-./gravlift --no-self-install
+gravlift install --no-self-install ~/Downloads/Antigravity.tar.gz
 ```
 Or set `AUTO_SELF_INSTALL=false` in `~/.config/gravlift/config` (or environment variable `GRAVLIFT_AUTO_SELF_INSTALL=false`).
 
-### 6. Uninstallation
-`gravlift` provides clean removal options for Antigravity and/or the `gravlift` utility:
+---
+
+### 5. Uninstallation (`uninstall`)
+
+Cleanly remove Antigravity 2.0, the `gravlift` tool, or both:
 
 #### Uninstall Antigravity 2.0
-Removes the Antigravity installation (`~/opt/antigravity`), binary symlink (`~/.local/bin/antigravity`), desktop launcher, and icon:
+Removes `~/opt/antigravity`, symlink `~/.local/bin/antigravity`, desktop launcher, and icon:
 ```bash
-gravlift --uninstall
+gravlift uninstall app
 ```
+*(Or simply `gravlift uninstall`)*
 
 #### Uninstall gravlift
-Removes `gravlift` from `~/opt/gravlift` and its symlink from `~/.local/bin/gravlift`:
+Removes `~/opt/gravlift` and `~/.local/bin/gravlift`:
 ```bash
-gravlift --uninstall-self
+gravlift uninstall self
 ```
 
 #### Uninstall Everything & Purge
 Removes Antigravity, `gravlift`, and cached backup archives:
 ```bash
-gravlift --uninstall-all --purge -y
+gravlift uninstall all --purge -y
 ```
 
 > [!NOTE]
@@ -103,24 +143,27 @@ gravlift --uninstall-all --purge -y
 
 ---
 
-## CLI Options Reference
+### 6. Backward Compatibility
 
-| Option | Alias | Description |
+All prior invocation formats and flags continue to work seamlessly:
+- Direct archive install: `gravlift Antigravity.tar.gz`
+- Default update scan: `gravlift`
+- Flag-based self-install: `gravlift --self-install`
+- Flag-based uninstall: `gravlift --uninstall`, `gravlift --uninstall-self`, `gravlift --uninstall-all`
+
+---
+
+## Command Reference
+
+| Subcommand | Options | Description |
 | :--- | :--- | :--- |
-| `-h` | `--help` | Display usage instructions and exit |
-| `-v` | `--version` | Display `gravlift` script version and exit |
-| | `--dry-run` | Run pre-flight checks and simulate operations without altering files |
-| | `--skip-backup` | Skip compressing a backup of the existing version before overwriting |
-| | `--force` | Force update/downgrade even if the target version is not newer |
-| | `--self-install` | Install `gravlift` to `~/opt/gravlift` and link to user bin directory |
-| | `--no-self-install` | Opt out of installing/updating `gravlift` itself during app installations |
-| | `--self-install-dir <dir>` | Override self-installation directory (default: `~/opt/gravlift`) |
-| | `--bin-dir <dir>` | Override user binary directory (default: `~/.local/bin`) |
-| | `--uninstall` | Uninstall Antigravity 2.0 application files, symlinks, and launcher |
-| | `--uninstall-self` | Uninstall the `gravlift` tool itself |
-| | `--uninstall-all` | Uninstall Antigravity 2.0, `gravlift`, and related files |
-| | `--purge` | Remove backups and configuration directories during uninstallation |
-| `-y` | `--yes` | Automatically confirm uninstallation prompts (for non-interactive use) |
+| `install [archive]` | `--dry-run`, `--skip-backup`, `--force`, `--no-self-install`, `--bin-dir <dir>` | Install Antigravity from archive or scan |
+| `update` | `--dry-run`, `--skip-backup`, `--force`, `--no-self-install`, `--bin-dir <dir>` | Scan downloads and apply available updates |
+| `self-install` | `--dry-run`, `--self-install-dir <dir>`, `--bin-dir <dir>` | Install `gravlift` utility to `~/opt` & PATH |
+| `uninstall [target]`| `app` (default), `self`, `all`, `--purge`, `-y`/`--yes`, `--dry-run` | Remove application, utility, or all |
+| `check` | `--bin-dir <dir>` | Run pre-flight diagnostic checks |
+| `version` | | Display version (`v1.0.0`) |
+| `help [command]` | | Show help for gravlift or a specific command |
 
 ---
 
