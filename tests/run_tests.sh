@@ -93,6 +93,20 @@ EOF
     chmod +x "$MOCK_BIN/xdg-user-dir"
 }
 
+# Set mock systemd-path output
+set_mock_systemd_path() {
+    local user_bin="$1"
+    cat > "$MOCK_BIN/systemd-path" <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "user-binaries" ]; then
+    echo "$user_bin"
+else
+    echo "\$HOME/.local/bin"
+fi
+EOF
+    chmod +x "$MOCK_BIN/systemd-path"
+}
+
 # Restore default mocks
 reset_mocks() {
     rm -f "$MOCK_BIN"/*
@@ -105,6 +119,8 @@ reset_mocks() {
     # Mock update-desktop-database to isolate tests from host environment
     echo '#!/usr/bin/env bash' > "$MOCK_BIN/update-desktop-database"
     chmod +x "$MOCK_BIN/update-desktop-database"
+    # Mock systemd-path
+    set_mock_systemd_path "$TEST_HOME/.local/bin"
 }
 
 # --- Mock Archive Generator ---
@@ -555,6 +571,74 @@ test_electron_version_fallback() {
     assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
 }
 
+# T17: Self-installation default to ~/opt/gravlift and link to ~/.local/bin
+test_self_install_default() {
+    run_gravlift --self-install
+    assert_success
+    
+    # Assert script is installed in ~/opt/gravlift/gravlift and is executable
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ ! -x "$TEST_HOME/opt/gravlift/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/opt/gravlift/gravlift to be executable"
+        return 1
+    fi
+    
+    # Assert symlink in ~/.local/bin/gravlift points to ~/opt/gravlift/gravlift
+    assert_link_exists "$TEST_HOME/.local/bin/gravlift" "$TEST_HOME/opt/gravlift/gravlift"
+    
+    # Verify that the installed symlink works by running --version
+    local ver_out
+    ver_out=$("$TEST_HOME/.local/bin/gravlift" --version)
+    if [[ "$ver_out" != *"gravlift v1.0.0"* ]]; then
+        echo -e "  ${RED}FAIL:${NC} Installed symlink failed to execute correctly"
+        return 1
+    fi
+}
+
+# T18: Self-installation with CLI directory overrides
+test_self_install_cli_overrides() {
+    local custom_install="$TEST_HOME/custom/tools/gravlift"
+    local custom_bin="$TEST_HOME/custom/bin"
+    
+    run_gravlift --self-install --self-install-dir "$custom_install" --bin-dir "$custom_bin"
+    assert_success
+    
+    assert_file_exists "$custom_install/gravlift"
+    assert_link_exists "$custom_bin/gravlift" "$custom_install/gravlift"
+    assert_output_contains "Installing 'gravlift' script to $custom_install"
+    assert_output_contains "Symlink created: $custom_bin/gravlift -> $custom_install/gravlift"
+}
+
+# T19: Self-installation dynamically discovers bin directory via systemd-path
+test_self_install_dynamic_systemd_path() {
+    local custom_sys_bin="$TEST_HOME/systemd_detected_bin"
+    set_mock_systemd_path "$custom_sys_bin"
+    
+    run_gravlift --self-install
+    assert_success
+    
+    assert_file_exists "$TEST_HOME/opt/gravlift/gravlift"
+    assert_link_exists "$custom_sys_bin/gravlift" "$TEST_HOME/opt/gravlift/gravlift"
+}
+
+# T20: Self-installation respects ~/.config/gravlift/config
+test_self_install_config_file() {
+    local config_dir="$TEST_HOME/.config/gravlift"
+    mkdir -p "$config_dir"
+    
+    cat > "$config_dir/config" <<EOF
+# Custom configuration
+SELF_INSTALL_DIR=~/my_tools/gravlift
+BIN_DIR=~/my_bin
+EOF
+
+    run_gravlift --self-install
+    assert_success
+    
+    assert_file_exists "$TEST_HOME/my_tools/gravlift/gravlift"
+    assert_link_exists "$TEST_HOME/my_bin/gravlift" "$TEST_HOME/my_tools/gravlift/gravlift"
+}
+
 # --- Main Test Execution ---
 
 echo -e "${BOLD}Starting gravlift test suite...${NC}"
@@ -577,6 +661,10 @@ run_test test_disk_space_check "Pre-flight disk space warning check"
 run_test test_trap_cleanup "Temporary directory signal trap cleanup"
 run_test test_version_flag "Version option outputs script version"
 run_test test_electron_version_fallback "Version fallback to Electron Node evaluation"
+run_test test_self_install_default "Self-installation defaults to ~/opt/gravlift with symlink"
+run_test test_self_install_cli_overrides "Self-installation with CLI directory overrides"
+run_test test_self_install_dynamic_systemd_path "Self-installation dynamically discovers bin directory via systemd-path"
+run_test test_self_install_config_file "Self-installation respects ~/.config/gravlift/config"
 
 echo "================================================="
 echo -e "${BOLD}Test Suite Summary:${NC}"

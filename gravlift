@@ -18,11 +18,91 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # --- Paths & Configuration ---
-INSTALL_PARENT="$HOME/opt"
-BIN_DIR="$HOME/.local/bin"
+INSTALL_PARENT="${INSTALL_PARENT:-$HOME/opt}"
+BIN_DIR=""
+SELF_INSTALL_DIR=""
 DESKTOP_DIR="$HOME/.local/share/applications"
 BACKUP_DIR="$HOME/.cache/gravlift/backups"
 GRAVLIFT_VERSION="1.0.0"
+
+CLI_BIN_DIR=""
+CLI_SELF_INSTALL_DIR=""
+CONFIG_BIN_DIR=""
+CONFIG_SELF_INSTALL_DIR=""
+
+# Load optional configuration file (~/.config/gravlift/config)
+load_config() {
+    local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/gravlift/config"
+    if [ -f "$config_file" ]; then
+        while IFS='=' read -r key value || [ -n "$key" ]; do
+            key=$(echo "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            [[ -z "$key" || "$key" =~ ^# ]] && continue
+            value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'"'"']//' -e 's/["'"'"']$//')
+
+            if [[ "$value" == "~"* ]]; then
+                value="$HOME${value#\~}"
+            fi
+
+            case "$key" in
+                SELF_INSTALL_DIR|self_install_dir)
+                    CONFIG_SELF_INSTALL_DIR="$value"
+                    ;;
+                BIN_DIR|bin_dir)
+                    CONFIG_BIN_DIR="$value"
+                    ;;
+                INSTALL_PARENT|install_parent)
+                    INSTALL_PARENT="$value"
+                    ;;
+            esac
+        done < "$config_file"
+    fi
+}
+
+# Resolve the directory for executable symlinks
+resolve_bin_dir() {
+    if [ -n "${CLI_BIN_DIR:-}" ]; then
+        echo "$CLI_BIN_DIR"
+        return 0
+    fi
+    if [ -n "${CONFIG_BIN_DIR:-}" ]; then
+        echo "$CONFIG_BIN_DIR"
+        return 0
+    fi
+    if [ -n "${GRAVLIFT_BIN_DIR:-}" ]; then
+        echo "$GRAVLIFT_BIN_DIR"
+        return 0
+    fi
+    if [ -n "${XDG_BIN_HOME:-}" ]; then
+        echo "$XDG_BIN_HOME"
+        return 0
+    fi
+    if command -v systemd-path &>/dev/null; then
+        local sys_bin
+        sys_bin=$(systemd-path user-binaries 2>/dev/null) || sys_bin=""
+        if [ -n "$sys_bin" ]; then
+            echo "$sys_bin"
+            return 0
+        fi
+    fi
+    echo "$HOME/.local/bin"
+}
+
+# Resolve the installation directory for gravlift itself
+resolve_self_install_dir() {
+    if [ -n "${CLI_SELF_INSTALL_DIR:-}" ]; then
+        echo "$CLI_SELF_INSTALL_DIR"
+        return 0
+    fi
+    if [ -n "${CONFIG_SELF_INSTALL_DIR:-}" ]; then
+        echo "$CONFIG_SELF_INSTALL_DIR"
+        return 0
+    fi
+    if [ -n "${GRAVLIFT_INSTALL_DIR:-}" ]; then
+        echo "$GRAVLIFT_INSTALL_DIR"
+        return 0
+    fi
+    echo "$INSTALL_PARENT/gravlift"
+}
 
 # --- Global State for Cleanup & Locking ---
 TEMP_DIRS=()
@@ -119,18 +199,22 @@ print_usage() {
     echo "Official downloads: https://antigravity.google/download"
     echo
     echo "Options:"
-    echo "  -h, --help       Show this help message"
-    echo "  -v, --version    Show script version"
-    echo "  --dry-run        Simulate the installation without modifying files"
-    echo "  --skip-backup    Skip creating a backup of existing installations"
-    echo "  --force          Force installation even if archive version is not newer"
+    echo "  -h, --help                Show this help message"
+    echo "  -v, --version             Show script version"
+    echo "  --dry-run                 Simulate the installation without modifying files"
+    echo "  --skip-backup             Skip creating a backup of existing installations"
+    echo "  --force                   Force installation even if archive version is not newer"
+    echo "  --self-install            Install gravlift to ~/opt/gravlift and link to user bin"
+    echo "  --self-install-dir <dir>  Override self-install directory (default: ~/opt/gravlift)"
+    echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
     echo
     echo "If no archive is provided, the script scans the current directory"
     echo "and your configured download directory (via xdg-user-dir DOWNLOAD,"
     echo "falling back to ~/Downloads) for files matching *antigravity*.tar.gz."
     echo
-    echo "Note: Running this script will also register itself as 'gravlift'"
-    echo "in ~/.local/bin for future use."
+    echo "Configuration:"
+    echo "  Custom paths can also be set in ~/.config/gravlift/config or via"
+    echo "  environment variables (GRAVLIFT_INSTALL_DIR, GRAVLIFT_BIN_DIR)."
 }
 
 # Logger utilities
@@ -544,43 +628,49 @@ install_archive() {
 # Verify Path
 check_path() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-        log_warning "${BOLD}~/.local/bin${NC} is not currently in your ${BOLD}\$PATH${NC}."
-        echo "To run 'antigravity' from the terminal:"
+        log_warning "${BOLD}$BIN_DIR${NC} is not currently in your ${BOLD}\$PATH${NC}."
+        echo "To run commands from $BIN_DIR in any terminal:"
         echo
         echo -e "For ${BOLD}bash${NC} or ${BOLD}zsh${NC}, add this to your config file (e.g. ~/.bashrc or ~/.zshrc):"
-        echo -e "${YELLOW}  export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+        echo -e "${YELLOW}  export PATH=\"$BIN_DIR:\$PATH\"${NC}"
         echo
         echo -e "For ${BOLD}fish${NC}, run this command once to persist the path dynamically:"
-        echo -e "${YELLOW}  fish_add_path \$HOME/.local/bin${NC}"
+        echo -e "${YELLOW}  fish_add_path $BIN_DIR${NC}"
         echo "Or add this to ~/.config/fish/config.fish:"
-        echo -e "${YELLOW}  set -gx PATH \$HOME/.local/bin \$PATH${NC}"
+        echo -e "${YELLOW}  set -gx PATH $BIN_DIR \$PATH${NC}"
         echo
     else
-        log_success "~/.local/bin is already in your \$PATH."
+        log_success "$BIN_DIR is already in your \$PATH."
     fi
 }
 
-# Install this script itself to ~/.local/bin/gravlift
+# Install this script itself to $SELF_INSTALL_DIR/gravlift and link to $BIN_DIR/gravlift
 self_install() {
-    local script_target="$BIN_DIR/gravlift"
+    local target_script="$SELF_INSTALL_DIR/gravlift"
+    local symlink_path="$BIN_DIR/gravlift"
+
+    mkdir -p "$SELF_INSTALL_DIR"
     mkdir -p "$BIN_DIR"
-    
+
     # Only copy if we are not already running from the target path
     local current_script_abs
     current_script_abs=$(realpath "$0")
-    local target_script_abs
-    if [ -f "$script_target" ]; then
-        target_script_abs=$(realpath "$script_target")
-    else
-        target_script_abs=""
+    local target_script_abs=""
+    if [ -f "$target_script" ]; then
+        target_script_abs=$(realpath "$target_script")
     fi
 
     if [ "$current_script_abs" != "$target_script_abs" ]; then
-        log_info "Registering 'gravlift' script to ~/.local/bin..."
-        cp "$0" "$script_target"
-        chmod +x "$script_target"
-        log_success "Script registered. You can now run 'gravlift' from anywhere!"
+        log_info "Installing 'gravlift' script to $SELF_INSTALL_DIR..."
+        cp "$0" "$target_script"
+        chmod +x "$target_script"
+        log_success "Script installed at: $target_script"
     fi
+
+    # Create / update the symlink in BIN_DIR
+    rm -f "$symlink_path"
+    ln -s "$target_script" "$symlink_path"
+    log_success "Symlink created: $symlink_path -> $target_script"
 }
 
 # Verify that the system glibc version meets requirements (>= 2.28)
@@ -656,9 +746,13 @@ main() {
     # Pre-flight checks
     check_glibc_version
 
+    # Load configuration
+    load_config
+
     local dry_run="false"
     local skip_backup="false"
     local force="false"
+    local self_install_only="false"
     local archives=()
 
     # Parse arguments
@@ -684,6 +778,28 @@ main() {
                 force="true"
                 shift
                 ;;
+            --self-install|--install-self)
+                self_install_only="true"
+                shift
+                ;;
+            --self-install-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_usage
+                    exit 1
+                fi
+                CLI_SELF_INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --bin-dir)
+                if [ -z "${2:-}" ]; then
+                    log_error "Option $1 requires a directory path argument."
+                    print_usage
+                    exit 1
+                fi
+                CLI_BIN_DIR="$2"
+                shift 2
+                ;;
             -*)
                 log_error "Unknown option: $1"
                 print_usage
@@ -695,6 +811,23 @@ main() {
                 ;;
         esac
     done
+
+    # Resolve paths
+    BIN_DIR=$(resolve_bin_dir)
+    SELF_INSTALL_DIR=$(resolve_self_install_dir)
+
+    # Handle standalone self-installation
+    if [ "$self_install_only" = "true" ]; then
+        if [ "$dry_run" = "true" ]; then
+            log_info "[DRY-RUN] Would install 'gravlift' script to $SELF_INSTALL_DIR/gravlift"
+            log_info "[DRY-RUN] Would symlink $BIN_DIR/gravlift -> $SELF_INSTALL_DIR/gravlift"
+            check_path
+            exit 0
+        fi
+        self_install
+        check_path
+        exit 0
+    fi
 
     # Auto-detection if no archives provided
     if [ ${#archives[@]} -eq 0 ]; then

@@ -48,6 +48,26 @@ Simulate all verification steps, version checks, and routing destinations withou
 ./gravlift --dry-run ~/Downloads/Antigravity.tar.gz
 ```
 
+### 5. Installing the `gravlift` Tool
+You can install `gravlift` itself as a system command without installing an archive:
+
+```bash
+./gravlift --self-install
+```
+
+By default, the script executable is placed in `~/opt/gravlift/gravlift` and a symlink is created in your user binary directory (`~/.local/bin/gravlift`, discovered dynamically via `systemd-path user-binaries`).
+
+You can override these locations with flags:
+```bash
+./gravlift --self-install --self-install-dir ~/tools/gravlift --bin-dir ~/bin
+```
+
+Or configure defaults in `~/.config/gravlift/config`:
+```ini
+SELF_INSTALL_DIR=~/opt/gravlift
+BIN_DIR=~/.local/bin
+```
+
 ---
 
 ## CLI Options Reference
@@ -56,9 +76,12 @@ Simulate all verification steps, version checks, and routing destinations withou
 | :--- | :--- | :--- |
 | `-h` | `--help` | Display usage instructions and exit |
 | `-v` | `--version` | Display `gravlift` script version and exit |
-| | `--dry-run` | Run pre-flight checks and simulate installation without altering files |
+| | `--dry-run` | Run pre-flight checks and simulate operations without altering files |
 | | `--skip-backup` | Skip compressing a backup of the existing version before overwriting |
 | | `--force` | Force update/downgrade even if the target version is not newer |
+| | `--self-install` | Install `gravlift` to `~/opt/gravlift` and link to user bin directory |
+| | `--self-install-dir <dir>` | Override self-installation directory (default: `~/opt/gravlift`) |
+| | `--bin-dir <dir>` | Override user binary directory (default: `~/.local/bin`) |
 
 ---
 
@@ -97,7 +120,7 @@ fish_add_path ~/.local/bin
 ./tests/run_tests.sh
 ```
 
-The test runner will create temporary directories, mock tools like `df`, `ldd`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 16 test cases covering CLI flags, version checks, locks, traps, and fallback logic.
+The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 20 test cases covering CLI flags, self-installation, version checks, locks, traps, and fallback logic.
 
 ---
 
@@ -108,11 +131,13 @@ The installer organizes files in user-space as follows:
 ```
 ~ (HOME)
 ├── opt/
-│   └── antigravity/             # Antigravity 2.0 Standalone Electron folder
+│   ├── antigravity/             # Antigravity 2.0 Standalone Electron folder
+│   └── gravlift/               # Installed gravlift script directory
+│       └── gravlift            # Script executable
 ├── .local/
 │   ├── bin/
-│   │   ├── gravlift            # Self-installed copy of this installer script
-│   │   └── antigravity          # Symlink to ~/opt/antigravity/antigravity
+│   │   ├── gravlift            # Symlink -> ~/opt/gravlift/gravlift
+│   │   └── antigravity          # Symlink -> ~/opt/antigravity/antigravity
 │   └── share/
 │       ├── applications/
 │       │   └── antigravity.desktop  # Desktop launcher for Antigravity 2.0
