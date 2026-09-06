@@ -173,10 +173,7 @@ create_mock_archive() {
     mkdir -p "$app_dir"
 
     # Define binary name
-    local exe_name="antigravity"
-    if [ "$type" = "ide" ]; then
-        exe_name="antigravity-ide"
-    fi
+    local exe_name="$type"
 
     # Create directory layout
     local run_dir="$app_dir"
@@ -412,10 +409,10 @@ test_auto_detection() {
     local custom_download="$TEST_HOME/custom_inbox"
     mkdir -p "$custom_download"
     
-    # Mock archive in the custom downloads folder
+    # Mock Antigravity 2.0 archive in the custom downloads folder
     create_mock_archive "antigravity" "$custom_download/Antigravity.tar.gz" "2.0.1"
-    # An IDE archive that should be ignored during auto-detection
-    create_mock_archive "ide" "$custom_download/Antigravity IDE.tar.gz" "1.2.3"
+    # A foreign/legacy archive that should be ignored during auto-detection
+    create_mock_archive "other-app" "$custom_download/Antigravity IDE.tar.gz" "1.2.3"
     
     # Configure custom download dir in the mock xdg-user-dir
     set_mock_xdg_user_dir "$custom_download"
@@ -570,17 +567,31 @@ test_disk_space_check() {
 
 # T14: Signal trap cleans up temp directories
 test_trap_cleanup() {
-    # We will trigger a failure in extraction to check trap cleanup.
-    # How? Let's pass a corrupt tarball (a text file renamed as .tar.gz)
-    echo "not a tarball" > "$TEST_HOME/Downloads/Antigravity.tar.gz"
+    local archive="$TEST_HOME/Downloads/Antigravity.tar.gz"
+    create_mock_archive "antigravity" "$archive" "1.0.0"
+
+    # Mock tar so that table-of-contents inspection (-tf) succeeds,
+    # but extraction (-xzf) fails (simulating corrupted payload blocks).
+    local real_tar
+    real_tar=$(which tar)
+    cat > "$MOCK_BIN/tar" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == *"-tf"* ]]; then
+    exec "$real_tar" "\$@"
+elif [[ "\$*" == *"-xzf"* ]]; then
+    echo "tar: corrupted payload block" >&2
+    exit 2
+fi
+exec "$real_tar" "\$@"
+EOF
+    chmod +x "$MOCK_BIN/tar"
     
-    run_gravlift
+    run_gravlift "$archive"
     assert_failure 1
     assert_output_contains "Failed to extract tarball archive"
     
     # Verify that the temporary extraction directory is deleted.
-    # Any directory created by mktemp should be cleaned up.
-    # Since we set TMPDIR="$MOCK_TMP", let's check that no directories are left under $MOCK_TMP.
+    # Since we set TMPDIR="$MOCK_TMP", check that no directories are left under $MOCK_TMP.
     local dir_count
     dir_count=$(find "$MOCK_TMP" -mindepth 1 -maxdepth 1 -type d | wc -l)
     if [ "$dir_count" -ne 0 ]; then

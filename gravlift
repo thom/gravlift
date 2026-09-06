@@ -259,35 +259,20 @@ check_dependencies() {
     fi
 }
 
-# Detect Antigravity 2.0 inside a tarball
+# Detect Antigravity 2.0 inside a tarball by inspecting archive contents
 detect_app_type() {
     local tarball="$1"
     
-    # Method 1: Inspect archive contents (single execution)
     local contents
     if contents=$(tar -tf "$tarball" 2>/dev/null); then
-        # Exclude antigravity-ide binary if present
-        if echo "$contents" | grep -qE "(^|/)antigravity-ide$"; then
-            echo "unknown"
-            return 0
-        fi
-        # Check for antigravity binary (standard 2.0)
         if echo "$contents" | grep -qE "(^|/)antigravity$"; then
             echo "antigravity"
             return 0
         fi
     fi
 
-    # Method 2: Fallback to filename matching (must match antigravity and not ide)
-    local filename
-    filename=$(basename "$tarball" | tr '[:upper:]' '[:lower:]')
-    if [[ "$filename" =~ ide ]]; then
-        echo "unknown"
-    elif [[ "$filename" =~ antigravity ]]; then
-        echo "antigravity"
-    else
-        echo "unknown"
-    fi
+    echo "unknown"
+    return 0
 }
 
 # Search for a suitable icon file in the app directory
@@ -1149,23 +1134,17 @@ main() {
         
         # Check current directory
         while IFS= read -r -d '' file; do
-            local base_lower
-            base_lower=$(basename "$file" | tr '[:upper:]' '[:lower:]')
-            if [[ "$base_lower" =~ ide ]]; then
-                continue
+            if [ "$(detect_app_type "$file")" = "antigravity" ]; then
+                archives+=("$file")
             fi
-            archives+=("$file")
         done < <(find . -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
 
         # Check Downloads directory
         if [ -d "$downloads_dir" ]; then
             while IFS= read -r -d '' file; do
-                local base_lower
-                base_lower=$(basename "$file" | tr '[:upper:]' '[:lower:]')
-                if [[ "$base_lower" =~ ide ]]; then
-                    continue
+                if [ "$(detect_app_type "$file")" = "antigravity" ]; then
+                    archives+=("$file")
                 fi
-                archives+=("$file")
             done < <(find "$downloads_dir" -maxdepth 1 -type f -iname "*antigravity*.tar.gz" -print0 2>/dev/null)
         fi
 
