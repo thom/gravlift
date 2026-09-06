@@ -29,6 +29,7 @@ CLI_BIN_DIR=""
 CLI_SELF_INSTALL_DIR=""
 CONFIG_BIN_DIR=""
 CONFIG_SELF_INSTALL_DIR=""
+CONFIG_AUTO_SELF_INSTALL=""
 
 # Load optional configuration file (~/.config/gravlift/config)
 load_config() {
@@ -52,6 +53,9 @@ load_config() {
                     ;;
                 INSTALL_PARENT|install_parent)
                     INSTALL_PARENT="$value"
+                    ;;
+                AUTO_SELF_INSTALL|auto_self_install|SELF_INSTALL|self_install)
+                    CONFIG_AUTO_SELF_INSTALL="$value"
                     ;;
             esac
         done < "$config_file"
@@ -205,6 +209,7 @@ print_usage() {
     echo "  --skip-backup             Skip creating a backup of existing installations"
     echo "  --force                   Force installation even if archive version is not newer"
     echo "  --self-install            Install gravlift to ~/opt/gravlift and link to user bin"
+    echo "  --no-self-install         Do not install/update gravlift itself when installing apps"
     echo "  --self-install-dir <dir>  Override self-install directory (default: ~/opt/gravlift)"
     echo "  --bin-dir <dir>           Override user bin directory (default: ~/.local/bin)"
     echo
@@ -213,8 +218,9 @@ print_usage() {
     echo "falling back to ~/Downloads) for files matching *antigravity*.tar.gz."
     echo
     echo "Configuration:"
-    echo "  Custom paths can also be set in ~/.config/gravlift/config or via"
-    echo "  environment variables (GRAVLIFT_INSTALL_DIR, GRAVLIFT_BIN_DIR)."
+    echo "  Custom paths and settings can also be set in ~/.config/gravlift/config or via"
+    echo "  environment variables (GRAVLIFT_INSTALL_DIR, GRAVLIFT_BIN_DIR,"
+    echo "  GRAVLIFT_AUTO_SELF_INSTALL=false)."
 }
 
 # Logger utilities
@@ -753,7 +759,15 @@ main() {
     local skip_backup="false"
     local force="false"
     local self_install_only="false"
+    local auto_self_install="true"
     local archives=()
+
+    # Determine default auto self-install behavior from config or environment
+    if [[ "${CONFIG_AUTO_SELF_INSTALL,,}" =~ ^(false|0|no|off)$ ]] || \
+       [[ "${GRAVLIFT_AUTO_SELF_INSTALL:-}" =~ ^(false|0|no|off)$ ]] || \
+       [ -n "${GRAVLIFT_NO_SELF_INSTALL:-}" ]; then
+        auto_self_install="false"
+    fi
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -780,6 +794,10 @@ main() {
                 ;;
             --self-install|--install-self)
                 self_install_only="true"
+                shift
+                ;;
+            --no-self-install|--no-install-self)
+                auto_self_install="false"
                 shift
                 ;;
             --self-install-dir)
@@ -934,7 +952,11 @@ main() {
     done
 
     if [ "$dry_run" = "false" ] && [ $success_count -gt 0 ]; then
-        self_install
+        if [ "$auto_self_install" = "true" ]; then
+            self_install
+        else
+            log_info "Skipping gravlift self-installation (opted out)."
+        fi
     fi
 
     check_path

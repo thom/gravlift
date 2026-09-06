@@ -66,7 +66,16 @@ Or configure defaults in `~/.config/gravlift/config`:
 ```ini
 SELF_INSTALL_DIR=~/opt/gravlift
 BIN_DIR=~/.local/bin
+AUTO_SELF_INSTALL=true   # Set to false to opt out of auto-installing gravlift during app installs
 ```
+
+#### Opting Out of Automatic Self-Installation
+When installing Antigravity, `gravlift` automatically self-installs to your path so you can update Antigravity easily in the future. To opt out, pass `--no-self-install`:
+
+```bash
+./gravlift --no-self-install
+```
+Or set `AUTO_SELF_INSTALL=false` in `~/.config/gravlift/config` (or environment variable `GRAVLIFT_AUTO_SELF_INSTALL=false`).
 
 ---
 
@@ -80,6 +89,7 @@ BIN_DIR=~/.local/bin
 | | `--skip-backup` | Skip compressing a backup of the existing version before overwriting |
 | | `--force` | Force update/downgrade even if the target version is not newer |
 | | `--self-install` | Install `gravlift` to `~/opt/gravlift` and link to user bin directory |
+| | `--no-self-install` | Opt out of installing/updating `gravlift` itself during app installations |
 | | `--self-install-dir <dir>` | Override self-installation directory (default: `~/opt/gravlift`) |
 | | `--bin-dir <dir>` | Override user binary directory (default: `~/.local/bin`) |
 
@@ -120,7 +130,7 @@ fish_add_path ~/.local/bin
 ./tests/run_tests.sh
 ```
 
-The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 20 test cases covering CLI flags, self-installation, version checks, locks, traps, and fallback logic.
+The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 22 test cases covering CLI flags, self-installation, opt-out mechanisms, version checks, locks, traps, and fallback logic.
 
 ---
 

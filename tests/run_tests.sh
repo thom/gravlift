@@ -639,6 +639,53 @@ EOF
     assert_link_exists "$TEST_HOME/my_bin/gravlift" "$TEST_HOME/my_tools/gravlift/gravlift"
 }
 
+# T21: Self-installation opt-out via --no-self-install CLI flag
+test_self_install_opt_out_flag() {
+    local archive="$MOCK_ARCHIVES/Antigravity-test-opt-out.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+
+    run_gravlift --no-self-install "$archive"
+    assert_success
+
+    # Antigravity itself should be installed and linked
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+    assert_link_exists "$TEST_HOME/.local/bin/antigravity"
+
+    # gravlift itself should NOT be installed or linked
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ -L "$TEST_HOME/.local/bin/gravlift" ] || [ -f "$TEST_HOME/.local/bin/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/.local/bin/gravlift to NOT exist"
+        return 1
+    fi
+    assert_output_contains "Skipping gravlift self-installation (opted out"
+}
+
+# T22: Self-installation opt-out via config file AUTO_SELF_INSTALL=false
+test_self_install_opt_out_config() {
+    local config_dir="$TEST_HOME/.config/gravlift"
+    mkdir -p "$config_dir"
+    cat > "$config_dir/config" <<EOF
+AUTO_SELF_INSTALL=false
+EOF
+
+    local archive="$MOCK_ARCHIVES/Antigravity-test-opt-out-cfg.tar.gz"
+    create_mock_archive "antigravity" "$archive" "2.1.0"
+
+    run_gravlift "$archive"
+    assert_success
+
+    # Antigravity should be installed
+    assert_file_exists "$TEST_HOME/opt/antigravity/antigravity"
+
+    # gravlift should NOT be installed
+    assert_file_not_exists "$TEST_HOME/opt/gravlift/gravlift"
+    if [ -L "$TEST_HOME/.local/bin/gravlift" ] || [ -f "$TEST_HOME/.local/bin/gravlift" ]; then
+        echo -e "  ${RED}FAIL:${NC} Expected $TEST_HOME/.local/bin/gravlift to NOT exist"
+        return 1
+    fi
+    assert_output_contains "Skipping gravlift self-installation (opted out"
+}
+
 # --- Main Test Execution ---
 
 echo -e "${BOLD}Starting gravlift test suite...${NC}"
@@ -665,6 +712,8 @@ run_test test_self_install_default "Self-installation defaults to ~/opt/gravlift
 run_test test_self_install_cli_overrides "Self-installation with CLI directory overrides"
 run_test test_self_install_dynamic_systemd_path "Self-installation dynamically discovers bin directory via systemd-path"
 run_test test_self_install_config_file "Self-installation respects ~/.config/gravlift/config"
+run_test test_self_install_opt_out_flag "Self-installation opt-out via --no-self-install flag"
+run_test test_self_install_opt_out_config "Self-installation opt-out via AUTO_SELF_INSTALL=false in config"
 
 echo "================================================="
 echo -e "${BOLD}Test Suite Summary:${NC}"
