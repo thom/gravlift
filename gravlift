@@ -126,7 +126,8 @@ print_usage() {
     echo "  --force          Force installation even if archive version is not newer"
     echo
     echo "If no archive is provided, the script scans the current directory"
-    echo "and ~/Downloads for files matching *antigravity*.tar.gz."
+    echo "and your configured download directory (via xdg-user-dir DOWNLOAD,"
+    echo "falling back to ~/Downloads) for files matching *antigravity*.tar.gz."
     echo
     echo "Note: Running this script will also register itself as 'gravlift'"
     echo "in ~/.local/bin for future use."

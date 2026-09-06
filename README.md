@@ -21,14 +21,14 @@ Official releases are available at [https://antigravity.google/download](https:/
 ## Installation & Usage
 
 ### 1. Automatic Archive Scan
-If run without arguments, `gravlift` queries XDG user directories and scans the current directory and your downloads directory (e.g. `~/Downloads` or `~/inbox`) for archives matching `*antigravity*.tar.gz` (case-insensitively).
+If run without arguments, `gravlift` queries your configured download directory via `xdg-user-dir DOWNLOAD` (falling back to `~/Downloads`). It scans both the current working directory and that download folder for archives matching `*antigravity*.tar.gz` (case-insensitively).
 
 ```bash
 ./gravlift
 ```
 
 ### 2. Manual Archive Specification
-You can pass the target `.tar.gz` archive directly:
+You can also pass the target `.tar.gz` archive directly:
 
 ```bash
 ./gravlift ~/Downloads/Antigravity.tar.gz
