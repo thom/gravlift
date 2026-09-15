@@ -604,7 +604,7 @@ EOF
 test_version_flag() {
     run_gravlift --version
     assert_success
-    assert_output_contains "gravlift v2.0.0"
+    assert_output_contains "gravlift v2.0.1"
 }
 
 # T16: Version fallback to Electron Node execution when package.json is packaged inside app.asar
@@ -637,7 +637,7 @@ test_self_install_default() {
     # Verify that the installed symlink works by running --version
     local ver_out
     ver_out=$("$TEST_HOME/.local/bin/gravlift" --version)
-    if [[ "$ver_out" != *"gravlift v2.0.0"* ]]; then
+    if [[ "$ver_out" != *"gravlift v2.0.1"* ]]; then
         echo -e "  ${RED}FAIL:${NC} Installed symlink failed to execute correctly"
         return 1
     fi
@@ -852,7 +852,7 @@ test_uninstall_non_interactive_requires_yes() {
 test_subcommand_version() {
     run_gravlift version
     assert_success
-    assert_output_contains "gravlift v2.0.0"
+    assert_output_contains "gravlift v2.0.1"
 }
 
 # T29: Subcommand 'help' and 'help <cmd>' display usage information
@@ -989,18 +989,18 @@ EOF
     # Run check to verify detection of older installed version
     run_gravlift check
     assert_success
-    assert_output_contains "Installed gravlift (v1.0.0) is older than running script (v2.0.0)"
+    assert_output_contains "Installed gravlift (v1.0.0) is older than running script (v2.0.1)"
 
     # Run self-install to upgrade
     run_gravlift self-install
     assert_success
-    assert_output_contains "Upgrading installed gravlift (v1.0.0 -> v2.0.0)"
+    assert_output_contains "Upgrading installed gravlift (v1.0.0 -> v2.0.1)"
     assert_output_contains "Script upgraded at: $TEST_HOME/opt/gravlift/gravlift"
 
     # Running self-install again reports up-to-date
     run_gravlift self-install
     assert_success
-    assert_output_contains "Installed gravlift is already up to date (v2.0.0)"
+    assert_output_contains "Installed gravlift is already up to date (v2.0.1)"
 }
 
 # --- Main Test Execution ---

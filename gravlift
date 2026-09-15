@@ -23,7 +23,7 @@ BIN_DIR=""
 SELF_INSTALL_DIR=""
 DESKTOP_DIR="$HOME/.local/share/applications"
 BACKUP_DIR="$HOME/.cache/gravlift/backups"
-GRAVLIFT_VERSION="2.0.0"
+GRAVLIFT_VERSION="2.0.1"
 
 CLI_BIN_DIR=""
 CLI_SELF_INSTALL_DIR=""

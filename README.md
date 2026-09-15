@@ -163,7 +163,7 @@ All prior invocation formats and flags continue to work seamlessly:
 | `self-install` | `--dry-run`, `--self-install-dir <dir>`, `--bin-dir <dir>` | Install `gravlift` utility to `~/opt` & PATH |
 | `uninstall [target]`| `app` (default), `self`, `all`, `--purge`, `-y`/`--yes`, `--dry-run` | Remove application, utility, or all |
 | `check` | `--bin-dir <dir>` | Run pre-flight diagnostic checks |
-| `version` | | Display version (`v2.0.0`) |
+| `version` | | Display version (`v2.0.1`) |
 | `help [command]` | | Show help for gravlift or a specific command |
 
 ---
@@ -194,16 +194,34 @@ fish_add_path ~/.local/bin
 
 ---
 
-## Testing the Installer
+## Development & Testing
 
-`gravlift` includes a comprehensive unit testing suite that executes inside an isolated sandbox environment.
+`gravlift` includes an automated test suite that executes inside an isolated sandbox environment without touching host configurations or files.
 
-### Run tests:
+### Running Tests
+
+Run via `make`:
+```bash
+make test
+```
+
+Or run the test script directly:
 ```bash
 ./tests/run_tests.sh
 ```
 
-The test runner will create temporary directories, mock tools like `df`, `ldd`, `systemd-path`, and `xdg-user-dir`, generate dummy tarball layouts, and execute 27 test cases covering CLI flags, self-installation, uninstallation, opt-out mechanisms, version checks, locks, traps, and fallback logic.
+### Syntax & Linting
+
+Validate shell script syntax across `gravlift` and tests:
+```bash
+make check
+```
+
+### How the Test Suite Works
+The test runner executes **36 automated unit tests** in a clean hermetic sandbox:
+- **Hermetic sandbox:** Spawns a dedicated temporary environment under `/tmp/tmp.XXXXXX` with mocked `$HOME`, `$XDG_*`, and `$PATH` directories.
+- **Mocked tooling:** Simulates system utilities (`df`, `ldd`, `systemd-path`, `xdg-user-dir`, and Electron runtime environments) to test edge cases deterministically.
+- **Full workflow coverage:** Verifies archive installation, version upgrades/downgrades, auto-scan update detection, desktop launchers, symlinks, safety backups, lock concurrency, opt-out mechanisms, uninstallation targets, diagnostics (`check`), and self-install upgrade detection.
 
 ---
 
