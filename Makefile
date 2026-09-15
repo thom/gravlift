@@ -1,5 +1,10 @@
+VERSION ?= $(shell sed -n 's/^GRAVLIFT_VERSION="\([^"]*\)"/\1/p' gravlift)
+DIST_DIR ?= dist
+PKG_NAME := gravlift-v$(VERSION)
+ARCHIVE_NAME := $(PKG_NAME).tar.gz
+
 .DEFAULT_GOAL := help
-.PHONY: test check lint install help
+.PHONY: test check lint install dist clean help
 
 test: ## Run the full automated test suite
 	@bash ./tests/run_tests.sh
@@ -17,6 +22,20 @@ lint: ## Check bash syntax (and run shellcheck if available)
 
 install: ## Install or upgrade gravlift locally (to ~/opt and ~/.local/bin)
 	@./gravlift self-install
+
+dist: clean ## Build release tarball and SHA256 checksum in dist/
+	@echo "Building distribution package $(ARCHIVE_NAME)..."
+	@mkdir -p $(DIST_DIR)/$(PKG_NAME)
+	@cp gravlift README.md $(DIST_DIR)/$(PKG_NAME)/
+	@chmod +x $(DIST_DIR)/$(PKG_NAME)/gravlift
+	@tar -czf $(DIST_DIR)/$(ARCHIVE_NAME) -C $(DIST_DIR) $(PKG_NAME)
+	@rm -rf $(DIST_DIR)/$(PKG_NAME)
+	@cd $(DIST_DIR) && sha256sum $(ARCHIVE_NAME) > $(ARCHIVE_NAME).sha256
+	@echo "Release archive created: $(DIST_DIR)/$(ARCHIVE_NAME)"
+	@echo "SHA256 checksum: $$(awk '{print $$1}' $(DIST_DIR)/$(ARCHIVE_NAME).sha256)"
+
+clean: ## Clean build and distribution artifacts
+	@rm -rf $(DIST_DIR)
 
 help: ## Display this help message
 	@echo "Usage: make [target]"

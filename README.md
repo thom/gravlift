@@ -163,7 +163,7 @@ All prior invocation formats and flags continue to work seamlessly:
 | `self-install` | `--dry-run`, `--self-install-dir <dir>`, `--bin-dir <dir>` | Install `gravlift` utility to `~/opt` & PATH |
 | `uninstall [target]`| `app` (default), `self`, `all`, `--purge`, `-y`/`--yes`, `--dry-run` | Remove application, utility, or all |
 | `check` | `--bin-dir <dir>` | Run pre-flight diagnostic checks |
-| `version` | | Display version (`v2.0.1`) |
+| `version` | | Display gravlift version |
 | `help [command]` | | Show help for gravlift or a specific command |
 
 ---
@@ -215,6 +215,13 @@ Or run the test script directly:
 Validate shell script syntax across `gravlift` and tests:
 ```bash
 make check
+```
+
+### Packaging Releases
+
+Generate a release tarball with a SHA256 checksum in the `dist/` folder:
+```bash
+make dist
 ```
 
 ### How the Test Suite Works

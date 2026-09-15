@@ -1,0 +1,7 @@
+# Build and distribution artifacts
+dist/
+
+# Editor and temporary files
+*~
+*.swp
+*.tmp
