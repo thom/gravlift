@@ -284,3 +284,10 @@ The installer organizes files in user-space as follows:
         ├── backups/             # Tarball backups of previous versions
         └── gravlift.lock.dir/  # Concurrency lock folder
 ```
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
+

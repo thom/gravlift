@@ -26,7 +26,7 @@ install: ## Install or upgrade gravlift locally (to ~/opt and ~/.local/bin)
 dist: clean ## Build release tarball and SHA256 checksum in dist/
 	@echo "Building distribution package $(ARCHIVE_NAME)..."
 	@mkdir -p $(DIST_DIR)/$(PKG_NAME)
-	@cp gravlift README.md $(DIST_DIR)/$(PKG_NAME)/
+	@cp gravlift README.md LICENSE $(DIST_DIR)/$(PKG_NAME)/
 	@chmod +x $(DIST_DIR)/$(PKG_NAME)/gravlift
 	@tar -czf $(DIST_DIR)/$(ARCHIVE_NAME) -C $(DIST_DIR) $(PKG_NAME)
 	@rm -rf $(DIST_DIR)/$(PKG_NAME)
