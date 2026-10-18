@@ -2,7 +2,7 @@
 
 `gravlift` is a smart installer and update manager for **Antigravity 2.0** on Linux. It handles binary deployment, symbolic linking, automatic updates, safety backups, and desktop integrations.
 
-Official releases are available at [https://antigravity.google/download](https://antigravity.google/download).
+Official **Antigravity 2.0** releases are available at [https://antigravity.google/download](https://antigravity.google/download).
 
 ---
 
@@ -16,7 +16,35 @@ Official releases are available at [https://antigravity.google/download](https:/
 
 ---
 
-## Installation & Usage
+## Quick Start
+
+### 1. Get `gravlift`
+
+**Clone via Git:**
+```bash
+git clone https://github.com/thom/gravlift.git
+cd gravlift
+make install   # or: ./gravlift self-install
+```
+
+**Or download the standalone script directly:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/thom/gravlift/main/gravlift -o gravlift
+chmod +x gravlift
+./gravlift self-install
+```
+
+### 2. Install Antigravity 2.0
+
+Download the Linux `.tar.gz` archive from [https://antigravity.google/download](https://antigravity.google/download) to your `~/Downloads` folder, then run:
+
+```bash
+gravlift install
+```
+
+---
+
+## Usage
 
 `gravlift` supports both modern Git-style subcommands and direct backward-compatible invocations:
 
